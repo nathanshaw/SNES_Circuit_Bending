@@ -34,6 +34,42 @@
      5    Data2         ?
      6    IOBit         ?
      7    Ground        Brown
+
+     When hooking up the Arduino to the bit shifters hook it up accordingly
+
+     Arduino Pin                      IC-Pin
+
+     22
+     23
+     24
+     25
+     26
+     27
+     28
+     29
+     30
+     31
+     32
+     33
+
+     Clock Cycle     Button Reported
+        ===========     ===============
+        1               B
+        2               Y
+        3               Select
+        4               Start
+        5               Up on joypad
+        6               Down on joypad
+        7               Left on joypad
+        8               Right on joypad
+        9               A
+        10              X
+        11              L
+        12              R
+        13              none (always high)
+        14              none (always high)
+        15              none (always high)
+        16              none (always high)
     
 */
 
@@ -53,7 +89,7 @@
 // for dev and debug
 #define DEBUG true
 
-#define mode PLAYERS_ALTERNATE
+#define mode PLAYERS_AGREE
 // a few utility functions
 #define setLow(port, pin) ((port) &= ~(1 << (pin)))
 #define setHigh(port, pin) ((port) |= (1 << (pin)))
@@ -64,7 +100,6 @@ int activePlayer = 0;
 long turnStart;
 long pastPoll;
 int turnLength = 500;
-
 // keep track of different controller states 
 // could be cleaned up
 uint16_t state1 = 0xFFFF;
@@ -75,7 +110,7 @@ uint16_t state = 0xFFFF;
 uint16_t past_state = 0xFFFF;
 
 SNESpad snes1 = SNESpad(IN1_STROBE, IN1_CLOCK, IN1_DATA);
-// SNESpad snes2 = SNESpad(IN2_STROBE, IN2_CLOCK, IN2_DATA);
+SNESpad snes2 = SNESpad(IN2_STROBE, IN2_CLOCK, IN2_DATA);
     
 void setup() {
     if (DEBUG) {
@@ -98,28 +133,36 @@ void loop() {
             playersAgree();
             break;
     }
-    writeToChip();
-    delay(50);
+    writeToChip(state);
 }
 
-void writeToChip() {
-  // cycle through each bit in state and write it out to the correct pins
+void writeToChip(uint16_t data) {
+  PORTA = (byte)data;
+  PORTC = (data >> 8) | 0xF0;
+  if (DEBUG){
+    Serial.print("Wrote to Chip : ");
+    Serial.print((byte)data);
+    Serial.print(" - ");
+    Serial.println(data >> 8);
+  }
 }
 
 void playersAgree() {
   
-  state1 = snes1.buttons();
-  // state2 = snes2.buttons();
-  state = snes1.buttons() & state2;
-
   if (DEBUG){
+      state1 = snes1.buttons();
+      state2 = snes2.buttons();
+      state = snes1.buttons() & state2;
       printBits(state1);
       Serial.print("-");
       printBits(state2);
       Serial.print("||");
       printBits(state);
       Serial.println();
-    }
+  }
+  else{
+      state = snes1.buttons() & snes2.buttons();
+  }
 }
 
 // ------------ Modes of Operation -------------------
@@ -135,11 +178,11 @@ void playersAlternate() {
           Serial.println(activePlayer + 1);
         }
     }
-  if (activePlayer == 1){
+  if (activePlayer == 0){
     state = state1 = snes1.buttons(); 
   }
-  else if (activePlayer == 2) {
-    // state = state2 = snes2.buttons(); 
+  else if (activePlayer == 1) {
+    state = state2 = snes2.buttons(); 
   }
   if (DEBUG){
     printControllerStates(state1, state2);
@@ -154,7 +197,7 @@ void printControllerStates(uint16_t state1, uint16_t state2) {
   printBits(state2);
   Serial.println(" ");
 }
-//overloaded to handle bytes and ints
+
 void printBits(uint16_t myByte){
  for(uint16_t mask = 0x8000; mask; mask >>= 1){
    if(mask  & myByte)
