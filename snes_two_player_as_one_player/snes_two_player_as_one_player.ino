@@ -4,20 +4,10 @@
 
     Programmed by Nathan Villicana-Shaw
     Fall 2015
-
-    TODO :
-
-    Add event polling system for sending the controller
-    messages to the SNES
-
-    Revamp code for MEGA    
-
     
-    PORTA is pins 22 - 29 
-    and will represent the second byte of the controller data
-    PORTC is pins 30 - 37
-    and will represent the first byte for the controllers
-
+    PORTA on the Arduino Mega consists of pins 22 - 29 
+    PORTC on the Arduino MEGA consists of pins 30 - 37
+    
     When hooking up the SNES controllers there are a few things that help the process
      ----------------------------- ---------------------
     |                             |                      \
@@ -35,29 +25,15 @@
      6    IOBit         ?
      7    Ground        Brown
 
-     When hooking up the Arduino to the bit shifters hook it up accordingly
-
-     Arduino Pin                      IC-Pin
-
-     22
-     23
-     24
-     25
-     26
-     27
-     28
-     29
-     30
-     31
-     32
-     33
+     Data Packing Order for the buttons. Note that the first clock cycle 
+     is acutually the downwards edge of the STROBE
 
      Clock Cycle     Button Reported
         ===========     ===============
-        1               B
+        1               B -start?
         2               Y
         3               Select
-        4               Start
+        4               Start - down
         5               Up on joypad
         6               Down on joypad
         7               Left on joypad
@@ -84,15 +60,12 @@
 // modes of operation
 #define PLAYERS_AGREE 1
 #define PLAYERS_ALTERNATE 2
+#define PLAYERS_DIFFER 3
 // number of players or controllers (might support more in future)
 #define NUM_PLAYERS 2
 // for dev and debug
-#define DEBUG true
-
+#define DEBUG false
 #define mode PLAYERS_AGREE
-// a few utility functions
-#define setLow(port, pin) ((port) &= ~(1 << (pin)))
-#define setHigh(port, pin) ((port) |= (1 << (pin)))
   
 // dealing with which player is active as well
 // as turn durations and lengths
@@ -100,11 +73,7 @@ int activePlayer = 0;
 long turnStart;
 long pastPoll;
 int turnLength = 500;
-// keep track of different controller states 
-// could be cleaned up
-uint16_t state1 = 0xFFFF;
-uint16_t state2 = 0xFFFF;
-uint16_t state = 0xFFFF;
+// the data that will be written to outputs
 
 // variable to keep track of past button states
 uint16_t past_state = 0xFFFF;
@@ -125,78 +94,119 @@ void setup() {
 }
 
 void loop() {
+    uint16_t output_state;
     switch (mode){
         case PLAYERS_ALTERNATE:
-            playersAlternate();
+            output_state = playersAlternate();
             break;
         case PLAYERS_AGREE:
-            playersAgree();
+            output_state = playersAgree();
+            break;
+        case PLAYERS_DIFFER:
+            output_state = playersDiffer();
             break;
     }
-    writeToChip(state);
+    
+    writeToChip(output_state);
+    
+    if (DEBUG) {
+      delay(35);
+    }
 }
 
+// Function for sending the button data to
+// The output controller
 void writeToChip(uint16_t data) {
-  PORTA = (byte)data;
-  PORTC = (data >> 8) | 0xF0;
+  PORTA = ~(byte)data;
+  PORTC = ~((data >> 8) | 0xF0);
   if (DEBUG){
-    Serial.print("Wrote to Chip : ");
-    Serial.print((byte)data);
-    Serial.print(" - ");
-    Serial.println(data >> 8);
+    Serial.print("Ports : ");
+    printBits(data);
+    Serial.println(" - ");
   }
 }
 
-void playersAgree() {
-  
-  if (DEBUG){
-      state1 = snes1.buttons();
-      state2 = snes2.buttons();
-      state = snes1.buttons() & state2;
+
+// ------------ Modes of Operation -------------------
+
+uint16_t playersAgree() {
+  /*
+   * In this method the two input controllers are read
+   * their button states are compared using boolean AND
+   * and the results of the boolean operation are saved to state
+   */
+   uint16_t state;
+   
+   if (DEBUG){
+      uint16_t state1 = snes1.buttons();
+      uint16_t state2 = snes2.buttons();
+      state = state1 & state2;
       printBits(state1);
       Serial.print("-");
       printBits(state2);
       Serial.print("||");
       printBits(state);
       Serial.println();
-  }
-  else{
+   }
+   else{
       state = snes1.buttons() & snes2.buttons();
-  }
+   }
+  
+   return state;
 }
 
-// ------------ Modes of Operation -------------------
+uint16_t playersDiffer() {
+  /*
+   * This method reads both players controller
+   * and performs an XOR boolean comparison between the
+   * two controllers. The results are returned as an uint16_t
+   */
+   uint16_t state;
+   if (DEBUG){
+      uint16_t state1 = snes1.buttons();
+      uint16_t state2 = snes2.buttons();
+      state = state1 ^ state2;
+      printBits(state1);
+      Serial.print("-");
+      printBits(state2);
+      Serial.print("||");
+      printBits(state);
+      Serial.println();
+   }
+   else {
+      state = snes1.buttons() ^ snes2.buttons();
+   }
+   return state;
+}
 
-void playersAlternate() {
-    // if the current turn is over
-    // move to the next turn
-    if (millis() > turnStart + turnLength){
+uint16_t playersAlternate() {
+  /*
+   * This method checks to see who's "turn" it is
+   * If it is a players turn their controller is read
+   * and the results are outputed without any manipulation
+   */
+   uint16_t state;
+  if (millis() > turnStart + turnLength){
         activePlayer = (activePlayer + 1) % NUM_PLAYERS;
         turnStart = millis();
         if (DEBUG){
-          Serial.print("Player");
-          Serial.println(activePlayer + 1);
+            Serial.print("Player");
+            Serial.println(activePlayer + 1);
         }
-    }
+  }
   if (activePlayer == 0){
-    state = state1 = snes1.buttons(); 
+    state = snes1.buttons(); 
   }
   else if (activePlayer == 1) {
-    state = state2 = snes2.buttons(); 
+    state = snes2.buttons(); 
   }
   if (DEBUG){
-    printControllerStates(state1, state2);
+    printBits(state);
   }
+  return state;
 }
-
+ 
 // ------------ Printing and DeBugging ----------------
-
-void printControllerStates(uint16_t state1, uint16_t state2) {
-  printBits(state1);
-  Serial.print("-");
-  printBits(state2);
-  Serial.println(" ");
-}
 
 void printBits(uint16_t myByte){
  for(uint16_t mask = 0x8000; mask; mask >>= 1){
