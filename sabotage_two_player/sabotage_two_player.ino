@@ -16,6 +16,25 @@
     ARDUINO : PORTS AND PINS
     ===========================================================
 
+    -------------------------------------------------
+    PLAYER 1 : INPUT
+    -------------------------------------------------
+    GND
+    5v
+    DATA          4
+    STROBE        2
+    CLOCK         3
+
+    -------------------------------------------------
+    PLAYER 2 : INPUT
+    -------------------------------------------------
+    GND
+    5v
+    DATA          7
+    STROBE        5
+    CLOCK         6
+    
+    -------------------------------------------------
     PLAYER 1 : OUTPUT
     -------------------------------------------------
     PORTA on the Arduino Mega consists of pins 22-29
@@ -24,7 +43,7 @@
 
     PORTC on the Arduino MEGA consists of pins 30-37
     `37 is bit 0, 30 is bit 7
-      we use pins 34-37 (1111xxxx)
+      we use pins 34-37 (xxxx1111)
       
     --------------------------------------------------
     PLAYER 2 : OUTPUT
@@ -33,9 +52,9 @@
       49 is bit 0, 42 is bit 7
       we use all the pins (11111111)
 
-    PORTK : on the Arduino Mega consists of pins 10-13 and 50-53
-      53 is bit 0, 50 is bit 3, 10 is bit 4, 13 is bit 7
-      we use pins 50-53 (1111xxxx)
+    PORTK : on the Arduino Mega consists of analog pins a8-a15
+      a8 is bit 0, a15 is bit 7
+      we use pins a8-a15 (xxxx1111)
 
     --------------------------------------------------
     LEDS : 
@@ -71,9 +90,9 @@
      Data Packing Order for the buttons. Note that the first clock cycle
      is acutually the downwards edge of the STROBE
 
-     Clock Cycle     Button Reported          MEGA PIN Player 1         MEGA PIN Player 1
+     Clock Cycle     Button Reported          MEGA PIN Player 1         MEGA PIN Player 2
      ===========     ===============          =================         =================
-        1               B -start?                   22                          49
+        1               B                           22                          49
         2               Y                           23                          48
         3               Select                      24                          47
         4               Start - down                25                          46
@@ -81,10 +100,10 @@
         6               Down on joypad              27                          44
         7               Left on joypad              28                          43
         8               Right on joypad             29                          42
-        9               A                           37                          53
-        10              X                           36                          52
-        11              L                           35                          51
-        12              R                           34                          50
+        9               A                           37                          A0
+        10              X                           36                          A1
+        11              L                           35                          A2
+        12              R                           34                          A3
         13              none (always high)         none                        none
         14              none (always high)         none                        none
         15              none (always high)         none                        none 
@@ -138,9 +157,16 @@
 #define IN2_STROBE 5
 #define IN2_CLOCK 6
 #define IN2_DATA 7
+// ---------------------   PORTS -----------------------------
+#define PLAYER1_BUTTONS1 PORTA
+#define PLAYER1_BUTTONS2 PORTC
+#define PLAYER2_BUTTONS1 PORTL
+#define PLAYER2_BUTTONS2 PORTK
 // ------------------------ MODES ----------------------------
 // ultimate co-op functionality
-#define SELECTION_MODE 0
+// these variables are use for both switching between the different modes
+// as well as applying a bit mask to turn on LED's for user feedback
+#define SELECTION_MODE 0x00
 #define PLAYERS_AGREE 0x01             // both players have to press a button
 #define PLAYERS_ALTERNATE 0x02         // players take turns
 #define PLAYERS_ALTERNATE_RANDOM 0x04  // players take turns of random length
@@ -149,10 +175,10 @@
 #define PLAYERS_DIVERGE 0x20
 // modes of operation for
 // ultimate competative functionality
-#define PLAYER_TAKEOVER 7           // you are able to "take over" opponent controls
+#define PLAYER_TAKEOVER 0x40           // you are able to "take over" opponent controls
 // modes for playing solo
-#define TWO_CONTROL_TWO 9           // each controller controls each output w/o resistance
-#define TOGGLE_PLAYER 10            // you can manually switch between output controllers
+#define TWO_CONTROL_TWO 0x80           // each controller controls each output w/o resistance
+#define TOGGLE_PLAYER 0x81            // you can manually switch between output controllers
 // --------------------- Controlers and Players -------------------
 // number of players or input controllers
 #define NUM_PLAYERS 2
@@ -170,22 +196,31 @@ int mode = SELECTION_MODE;
 // dealing with which player is active as well
 // as turn durations and lengths
 int activePlayer = PLAYER_ONE;
-long turnStart;
-long pastPoll;
+long turnStart = 0;
+long pastPoll = 0;
 long turnLength = 2000;
 long divergeTurnLength = 1;
 int divergeDirection;
 long selectPressTime = 1500;
-long lastSelectPress;
+long lastSelectPress = 0;
 
+// for helping with LED flashing
+long lastFlash = 0;
+int fastFlash = 100;
+int slowFlash = 400;
+
+// for helping with mode selections
 long lastLeftTriggerPress;
 long lastRightTriggerPress;
 long triggerPressTime = 2000;
 long lastLedBlink;
 
+// to keep track of last output sttes
+uint16_t p1LastOutputState = 0x0FFF;
+uint16_t p1OutputState = 0x0000;
+uint16_t p2LastOutputState = 0x0FFF;
+uint16_t p2OutputState = 0x0000;
 // variable to keep track of past button states
-uint16_t lastOutputState = 0x0FFF;
-uint16_t outputState = 0x0000;
 uint16_t player1State = 0x0000;
 uint16_t player2State = 0x0000;
 //
@@ -203,10 +238,10 @@ void setup() {
   // set LED's port to output
   DDRF = 0xFF;
   // set controller ports to HIGH (the resting state)
-  PORTA = 0xFF;
-  PORTC = 0xFF;
-  PORTL = 0xFF;
-  PORTK = 0xFF;
+  PLAYER1_BUTTONS1 = 0xFF;
+  PLAYER1_BUTTONS2 = 0xFF;
+  PLAYER2_BUTTONS1 = 0xFF;
+  PLAYER2_BUTTONS2 = 0xFF;
   // set LED's port to LOW
   PORTF = 0x00;
   
@@ -227,43 +262,43 @@ void loop() {
     // Modes for two players playing as one character
     // -------------------------------------------------
     case PLAYERS_AGREE:
-      outputState = playersAgree();
-      writeToChip(outputState, PLAYER_ONE);
+      p1OutputState = playersAgree();
+      writeToChip(p1OutputState, PLAYER_ONE);
       break;
     case PLAYERS_ALTERNATE:
-      outputState = playersAlternate(turnLength);
-      writeToChip(outputState, PLAYER_ONE);
+      p1OutputState = playersAlternate(turnLength);
+      writeToChip(p1OutputState, PLAYER_ONE);
       break;
     case PLAYERS_ALTERNATE_RANDOM:
-      outputState = playersAlternateRandom(turnLength);
-      writeToChip(outputState, PLAYER_ONE);
+      p1OutputState = playersAlternateRandom(turnLength);
+      writeToChip(p1OutputState, PLAYER_ONE);
       break;
     case PLAYERS_DIFFER:
-      outputState = playersDiffer();
-      writeToChip(outputState, PLAYER_ONE);
+      p1OutputState = playersDiffer();
+      writeToChip(p1OutputState, PLAYER_ONE);
       break;
     case PLAYERS_BOTH_CONTROL:
-      outputState = bothControl();
-      writeToChip(outputState, PLAYER_ONE);
+      p1OutputState = bothControl();
+      writeToChip(p1OutputState, PLAYER_ONE);
       break;
     case PLAYERS_DIVERGE:
       divergeTurnLength = playersDiverge();
-      playersAlternate(divergeTurnLength);
-      writeToChip(outputState, PLAYER_ONE);
+      p1OutputState = playersAlternate(divergeTurnLength);
+      writeToChip(p1OutputState, PLAYER_ONE);
       break;
     // same as players bot control but output goes to both players
     case TWO_CONTROL_TWO:
-      outputState = bothControl();
-      writeToChip(outputState, PLAYER_ONE);
-      writeToChip(outputState, PLAYER_TWO);
+      p1OutputState = p2OutputState =  bothControl();
+      writeToChip(p1OutputState, PLAYER_ONE);
+      writeToChip(p1OutputState, PLAYER_TWO);
       break;
     // -------------------------------------------------
     // Modes for one player play as multiple characters
     // -------------------------------------------------
     case TOGGLE_PLAYER:
-      outputState = bothControl();
+      p1OutputState = bothControl();
       activePlayer = determineOutputController();
-      writeToChip(outputState, activePlayer);
+      writeToChip(p1OutputState, activePlayer);
       break;
     //--------------------------------------------------
     // Modes for two players playing a VS game (KillerInstinct)
@@ -282,9 +317,15 @@ void loop() {
     // -----------------------
   }
   // turn on LED's for mode
-  PORTF = mode;
+  if (mode != 0) {
+      PORTF = mode; 
+  }
+  else if(millis() > lastFlash + slowFlash){
+    PORTF = ~PORTF;
+    lastFlash = millis();
+  }
   checkSelect();
-  lastOutputState = outputState;
+  p1LastOutputState = p1OutputState;
 
   if (DEBUG) {
     Serial.print(mode);
@@ -306,18 +347,18 @@ int determineOutputController() {
        as it assumes you are playing alone
   */
   // check to see if the trigger buttons state has changed
-  if (~PORTC & TRIGGER_MASK && lastOutputState & TRIGGER_MASK) {
+  if (~PLAYER1_BUTTONS2 & TRIGGER_MASK && p1LastOutputState & TRIGGER_MASK) {
     // if it is pressed and the last reading it was not pressed
     // set lastSelectPress to now
     lastSelectPress = millis();
   }
   // if they are off but were just turned on
-  else if (!(~PORTC & TRIGGER_MASK) && !(lastOutputState & TRIGGER_MASK)) {
+  else if (!(~PLAYER1_BUTTONS2 & TRIGGER_MASK) && !(p1LastOutputState & TRIGGER_MASK)) {
     // do something
   }
   // if the trigger buttons are held down for select press time flip the activePlayer
-  else if (~PORTC & TRIGGER_MASK &&
-           lastOutputState & TRIGGER_MASK &&
+  else if (~PLAYER1_BUTTONS2 & TRIGGER_MASK &&
+           p1LastOutputState & TRIGGER_MASK &&
            millis() > lastSelectPress + selectPressTime) {
     if (activePlayer = PLAYER_ONE) {
       return PLAYER_TWO;
@@ -394,19 +435,19 @@ int selectMode() {
 
 void moveJoystick(int delayTime) {
     // this is to tell the players that the process is finished
-  PORTA = PORTA = ~SNES_UP;
+  PLAYER1_BUTTONS1 = PLAYER1_BUTTONS1 = ~SNES_UP;
   delay(delayTime);
-  PORTA = PORTA = 0xFF;
-  PORTA = PORTA = ~SNES_DOWN;
+  PLAYER1_BUTTONS1 = PLAYER1_BUTTONS1 = 0xFF;
+  PLAYER1_BUTTONS1 = PLAYER1_BUTTONS1 = ~SNES_DOWN;
   delay(delayTime);
-  PORTA = PORTA = 0xFF;
-  PORTA = PORTA = ~SNES_LEFT;
+  PLAYER1_BUTTONS1 = PLAYER1_BUTTONS1 = 0xFF;
+  PLAYER1_BUTTONS1 = PLAYER1_BUTTONS1 = ~SNES_LEFT;
   delay(delayTime);
-  PORTA = PORTA = ~0xFF;
-  PORTA = PORTA = ~SNES_RIGHT;
+  PLAYER1_BUTTONS1 = PLAYER1_BUTTONS1 = ~0xFF;
+  PLAYER1_BUTTONS1 = PLAYER1_BUTTONS1 = ~SNES_RIGHT;
   delay(delayTime);
-  PORTA = PORTA = 0xFF;
-  outputState = lastOutputState = 0x0000;
+  PLAYER1_BUTTONS1 = PLAYER1_BUTTONS1 = 0xFF;
+  p1OutputState = p1LastOutputState = 0x0000;
   player1State = player2State = 0x0000;
 }
 // ==========================================================================
@@ -414,12 +455,14 @@ void moveJoystick(int delayTime) {
 // ==========================================================================
 void writeToChip(uint16_t data, int writtingMode) {
   if (writtingMode == PLAYER_ONE) {
-    PORTA = ~(byte)data;
-    PORTC = ~((data >> 8) | 0x00);
+    PLAYER1_BUTTONS1 = ~(byte)data;
+    PLAYER1_BUTTONS2 = ~((data >> 8) | 0x00);
+    p1LastOutputState = data;
   }
   else if (writtingMode == PLAYER_TWO) {
-    PORTL = ~(byte)data;
-    PORTK = ~((data >> 8) | 0x00);
+    PLAYER2_BUTTONS1 = ~(byte)data;
+    PLAYER2_BUTTONS2 = ~((data >> 8) | 0x00);
+    p2LastOutputState = data;
   }
 }
 
@@ -431,13 +474,13 @@ void checkSelect() {
      held down for selectPressTime
   */
   // check to see if the select buttons state has changed
-  if (outputState & SNES_SELECT && !(lastOutputState & SNES_SELECT)) {
+  if (p1OutputState & SNES_SELECT && !(p1LastOutputState & SNES_SELECT)) {
     // if it is pressed and the last reading it was not pressed
     // set lastSelectPress to now
     lastSelectPress = millis();
   }
-  else if (outputState & SNES_SELECT &&
-           lastOutputState & SNES_SELECT &&
+  else if (p1OutputState & SNES_SELECT &&
+           p1LastOutputState & SNES_SELECT &&
            millis() > lastSelectPress + selectPressTime) {
     // press start and enter selection mode
     moveJoystick(100);
