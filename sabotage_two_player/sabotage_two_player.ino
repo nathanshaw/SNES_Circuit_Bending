@@ -1,17 +1,15 @@
 /*
     Arduino Firmware for interfacing with the SNES
 
-    This verson is specifically designed for fighting games
-    where two players fight against each other as it allows
-
     Two Input Controllers : Two Output Controllers
 
     Programmed by Nathan Villicana-Shaw
     Fall 2015
 
-    -----------------------------------------------------------
     This project is a work in progress and builds upon the shoulders
     of many brilliant programmers, hackers, engineers and artists
+    (links to be added soon)
+
     ===========================================================
     ARDUINO : PORTS AND PINS
     ===========================================================
@@ -22,7 +20,7 @@
     GND
     5v
     DATA          4
-    LATCH        2
+    LATCH         2
     CLOCK         3
 
     -------------------------------------------------
@@ -31,9 +29,9 @@
     GND
     5v
     DATA          7
-    LATCH        5
+    LATCH         5
     CLOCK         6
-    
+
     -------------------------------------------------
     PLAYER 1 : OUTPUT
     -------------------------------------------------
@@ -44,7 +42,7 @@
     PORTC on the Arduino MEGA consists of pins 30-37
     `37 is bit 0, 30 is bit 7
       we use pins 34-37 (xxxx1111)
-      
+
     --------------------------------------------------
     PLAYER 2 : OUTPUT
     -------------------------------------------------
@@ -57,21 +55,21 @@
       we use pins a8-a15 (xxxx1111)
 
     --------------------------------------------------
-    LEDS : 
+    LEDS :
     --------------------------------------------------
     PORTF : on the Arduno Mega port F consists of analog
-      pins 0 - 7, each LED corrisponds with an operation mode 
+      pins 0 - 7, each LED corrisponds with an operation mode
 
     ================================================================================
                                   SNES CONTROLLERS
     ================================================================================
 
     It is very important to note that the SNES controller reads a button as being pressed
-    upon the grounding of its corrisponding pin -  Thus when a 0 is written to a Pin the 
+    upon the grounding of its corrisponding pin -  Thus when a 0 is written to a Pin the
     button is "pressed" until the pin is raised back to its HIGH
 
     When hooking up the SNES controllers there are a few things that help the process :
-    
+
                   SNES Controller Jack Pins
      ----------------------------- ---------------------
     |                             |                      \
@@ -98,7 +96,7 @@
         2               Y                           23                          48
         3               Select                      24                          47
         4               Start - down                25                          46
-        5               Up on joypad                26                          45  
+        5               Up on joypad                26                          45
         6               Down on joypad              27                          44
         7               Left on joypad              28                          43
         8               Right on joypad             29                          42
@@ -108,47 +106,47 @@
         12              R                           34                          A3
         13              none (always high)         none                        none
         14              none (always high)         none                        none
-        15              none (always high)         none                        none 
+        15              none (always high)         none                        none
         16              none (always high)         none                        none
 
-  =======================================================================
-                        Mode Selection
-  =======================================================================
+      =======================================================================
+                            Mode Selection
+      =======================================================================
 
-  for the first four seconds after the Arduino boots
-  the board will be in a mode select state
+      for the first four seconds after the Arduino boots
+      the board will be in a mode select state
 
-  In order to select an operating mode both players must press one
-  of the following buttons as the same time
+      In order to select an operating mode both players must press one
+      of the following buttons as the same time
 
-  A             = players agree
-  B             = players alternate
-  Y             = players differ
-  X             = players both play
-  Right Trigger = debug on
-  Left Trigger  = debug off
-  D-Pad UP      = players alternating random
-  D-Pad DOWN    = unmapped
-  D-Pad LEFT    = toggler player // needs testing
-  D-Pad Right   = two controls two // needs testing
-  SELECT        = unmapped
-  START         = Turns DEBUG on
-  =======================================================================
-                                General Notes
-  =======================================================================
+      A             = players agree
+      B             = players alternate
+      Y             = players differ
+      X             = players both play
+      Right Trigger = debug on
+      Left Trigger  = debug off
+      D-Pad UP      = players alternating random
+      D-Pad DOWN    = unmapped
+      D-Pad LEFT    = toggler player // needs testing
+      D-Pad Right   = two controls two // needs testing
+      SELECT        = unmapped
+      START         = Turns DEBUG on
+      =======================================================================
+                                    General Notes
+      =======================================================================
 
-  For the SNES controllers the buttons resting position is HIGH as 5v when
-  the pad is grounded the button is pressed. This is usally done by bridging 
-  pads together using conductive plastic that rests on the bottom of the button 
-  you pressed. In this project we solder wires to the sensing pads that we ground 
-  using our arduinos digital pins. 
+      For the SNES controllers the buttons resting position is HIGH as 5v when
+      the pad is grounded the button is pressed. This is usally done by bridging
+      pads together using conductive plastic that rests on the bottom of the button
+      you pressed. In this project we solder wires to the sensing pads that we ground
+      using our arduinos digital pins.
 
-  TODO ::
+      TODO ::
 
-  Flushout the player takeover system
-    - perhaps the buttons become the other players D-pad?
+      Flushout the player takeover system
+        - perhaps the buttons become the other players D-pad?
 
-   Have different color LEDS for 'single player' and multiplayer modes
+       Have different color LEDS for 'single player' and multiplayer modes
 
 */
 // ================================================================
@@ -171,6 +169,8 @@
 #define PLAYER2_BUTTONS1 PORTL
 #define PLAYER2_BUTTONS2 PORTK
 #define STATUS_LEDS PORTF
+// --------------------- MASKS -------------------------------
+#define MODE_SELECT_MASK 0x0F03
 // ------------------------ MODES ----------------------------
 // these variables are use for both switching between the different modes
 // as well as applying a bit mask to turn on LED's for user feedback
@@ -199,11 +199,11 @@
 //                            Globals
 // ================================================================
 // for dev and debug
-int DEBUG = 2; 
+int DEBUG = 0;
 /*
- * 0 is no DEBUG
- * 1 is regular DEBUG - adds print statements
- * 2 is same as 1 but adds delay to program
+   0 is no DEBUG
+   1 is regular DEBUG - adds print statements
+   2 is same as 1 but adds delay to program
 */
 
 // for determining operating mode
@@ -215,8 +215,7 @@ int activePlayer = PLAYER_ONE;
 long turnStart = 0;
 long pastPoll = 0;
 long turnLength = 2000;
-long divergeTurnLength = 1;
-int divergeDirection;
+
 long selectPressTime = 1500;
 long lastSelectPress = 0;
 
@@ -225,6 +224,9 @@ long lastFlash = 0;
 int fastFlash = 100;
 int slowFlash = 400;
 
+long divergeTurnLength = 1;
+int divergeDirection;
+int maxDivergeTurnLength = 5000;
 // for helping with mode selections
 long lastLeftTriggerPress;
 long lastRightTriggerPress;
@@ -263,13 +265,13 @@ void setup() {
   PLAYER2_BUTTONS2 = 0xFF;
   // set LED's port to LOW
   STATUS_LEDS = 0x00;
-  
+
   // let things settle
   delay(10);
 
   // allow players to select a playing mode
   mode = selectMode();
-  
+
   if (DEBUG) {
     Serial.begin(57600);
     Serial.println("SERIAL BUS OPENED");
@@ -285,27 +287,33 @@ void loop() {
     case PLAYERS_AGREE:
       p1OutputState = playersAgree();
       writeToChip(p1OutputState, PLAYER_ONE);
+      writeToChip(p1OutputState, PLAYER_TWO);
       break;
     case PLAYERS_ALTERNATE:
       p1OutputState = playersAlternate(turnLength);
       writeToChip(p1OutputState, PLAYER_ONE);
+      writeToChip(p1OutputState, PLAYER_TWO);
       break;
     case PLAYERS_ALTERNATE_RANDOM:
       p1OutputState = playersAlternateRandom(turnLength);
       writeToChip(p1OutputState, PLAYER_ONE);
+      writeToChip(p1OutputState, PLAYER_TWO);
       break;
     case PLAYERS_DIFFER:
       p1OutputState = playersDiffer();
       writeToChip(p1OutputState, PLAYER_ONE);
+      writeToChip(p1OutputState, PLAYER_TWO);
       break;
     case PLAYERS_BOTH_CONTROL:
       p1OutputState = bothControl();
       writeToChip(p1OutputState, PLAYER_ONE);
+      writeToChip(p1OutputState, PLAYER_TWO);
       break;
     case PLAYERS_DIVERGE:
       divergeTurnLength = playersDiverge();
       p1OutputState = playersAlternate(divergeTurnLength);
       writeToChip(p1OutputState, PLAYER_ONE);
+      writeToChip(p1OutputState, PLAYER_TWO);
       break;
     // same as players both control but output goes to both output controllers
     case TWO_CONTROL_TWO:
@@ -323,7 +331,7 @@ void loop() {
       break;
     //--------------------------------------------------
     // Modes for two players playing a VS game (KillerInstinct)
-    // -------------------------------------------------  
+    // -------------------------------------------------
     case PLAYER_TAKEOVER:
       playerTakeover();
       writeToChip(player1State, PLAYER_ONE);
@@ -331,17 +339,17 @@ void loop() {
       break;
     // -------------------------------------------------
     // The Selection Mode for switching between all the other modes
-    // -------------------------------------------------  
+    // -------------------------------------------------
     case SELECTION_MODE:
       mode = selectMode();
       break;
-    // -----------------------
+      // -----------------------
   }
   // turn on LED's for mode
   if (mode != 0) {
-      STATUS_LEDS = mode; 
+    STATUS_LEDS = mode;
   }
-  else if(millis() > lastFlash + slowFlash){
+  else if (millis() > lastFlash + slowFlash) {
     STATUS_LEDS = ~STATUS_LEDS;
     lastFlash = millis();
   }
@@ -350,9 +358,9 @@ void loop() {
 
   dprint(mode);
   dprint(" : ");
-  if(DEBUG > 1) delay(10);
-  }
+  if (DEBUG > 1) { delay(10);};
 }
+
 
 
 // ==========================================================================
@@ -384,10 +392,10 @@ uint16_t bothControl() {
   player2State = snes2.buttons();
   output = player1State | player2State;
   if (DEBUG) {
-    if (mode == PLAYERS_BOTH_CONTROL){
+    if (mode == PLAYERS_BOTH_CONTROL) {
       Serial.print("BOTH CONTROL : ");
     }
-    else if (mode == TWO_CONTROL_TWO){
+    else if (mode == TWO_CONTROL_TWO) {
       Serial.print("TWO CONTROL TWO : ");
     }
     printBits(player1State);
@@ -448,14 +456,10 @@ uint16_t playersDiffer() {
 }
 
 int playersDiverge() {
-  /*
-   * 
-   */
-   divergeTurnLength;
-   if ( divergeTurnLength > maxDivergeTurnLength || divergeTurnLength < 0) {
-     divergeDirection *= -1;
-   }
-  divergeTurnLength = divergeTurnLength + divergeDirection;   
+  if ( divergeTurnLength > maxDivergeTurnLength || divergeTurnLength < 0) {
+    divergeDirection *= -1;
+  }
+  divergeTurnLength = divergeTurnLength + divergeDirection;
   return divergeTurnLength;
 }
 
@@ -471,9 +475,8 @@ uint16_t playersAlternateRandom(long mTurnLength) {
   if (millis() > turnStart + mTurnLength) {
     activePlayer = (activePlayer + 1) % NUM_PLAYERS;
     turnStart = millis();
-      dprint("Player");
-      dprintln(activePlayer + 1);
-    }
+    dprint("Player");
+    dprintln(activePlayer + 1);
     turnLength = mTurnLength * random(200) * 0.01 + (mTurnLength * 0.1);
   }
 
@@ -571,66 +574,77 @@ int determineOutputController() {
 
 int selectMode() {
   /*
-  // listen for 5 seconds for a button to have been pressed
-  // on both controllers
-  // store the last button that is pressed
-  // each button corrisponds to an operating mode
+    // listen for 5 seconds for a button to have been pressed
+    // on both controllers
+    // store the last button that is pressed
+    // each button corrisponds to an operating mode
   */
   int new_mode = mode;
-  dprintln("ENTERED MODE SELECT :");
-  /*
-     There is a better way to do this for sure
-  */
-    uint16_t combined_buttons = snes1.buttons() & snes2.buttons();
+  uint16_t combined_buttons = snes1.buttons() & snes2.buttons();
 
-    if (combined_buttons & SNES_Y) {
-      new_mode = PLAYERS_ALTERNATE;
-      if (DEBUG) {Serial.println("PLAYERS ALTERNATE SELECTED");}
+  if (combined_buttons & SNES_Y) {
+    new_mode = PLAYERS_ALTERNATE;
+    if (DEBUG) {
+      Serial.println("PLAYERS ALTERNATE SELECTED");
     }
-    else if (combined_buttons & SNES_A) {
-      new_mode = PLAYERS_AGREE;
-      if (DEBUG) {Serial.println("PLAYERS AGREE SELECTED");}
+  }
+  else if (combined_buttons & SNES_A) {
+    new_mode = PLAYERS_AGREE;
+    if (DEBUG) {
+      Serial.println("PLAYERS AGREE SELECTED");
     }
-    else if (combined_buttons & SNES_X) {
-      new_mode = PLAYERS_DIFFER;
-      if (DEBUG) {Serial.println("PLAYERS DIFFER SELECTED");}
+  }
+  else if (combined_buttons & SNES_X) {
+    new_mode = PLAYERS_DIFFER;
+    if (DEBUG) {
+      Serial.println("PLAYERS DIFFER SELECTED");
     }
-    else if (combined_buttons & SNES_B) {
-      new_mode = PLAYERS_BOTH_CONTROL;
-      if (DEBUG) {Serial.println("PLAYERS BOTH CONTROL SELECTED");}
+  }
+  else if (combined_buttons & SNES_B) {
+    new_mode = PLAYERS_BOTH_CONTROL;
+    if (DEBUG) {
+      Serial.println("PLAYERS BOTH CONTROL SELECTED");
     }
-    else if (combined_buttons &  SNES_UP) {
-      new_mode = PLAYERS_ALTERNATE_RANDOM;
-      if (DEBUG) {Serial.println("PLAYERS ALTERNATE RANDOM SELECTED");}
+  }
+  else if (combined_buttons &  SNES_UP) {
+    new_mode = PLAYERS_ALTERNATE_RANDOM;
+    if (DEBUG) {
+      Serial.println("PLAYERS ALTERNATE RANDOM SELECTED");
     }
-    else if (combined_buttons & SNES_R) {
-      DEBUG = true;
-      if (DEBUG) {Serial.println("DEBUG TURNED ON");}
+  }
+  else if (combined_buttons & SNES_R) {
+    DEBUG = true;
+    if (DEBUG) {
+      Serial.println("DEBUG TURNED ON");
     }
-    else if (combined_buttons & SNES_L) {
-      if (DEBUG) {Serial.println("DEBUG TURNED OFF");}
-      DEBUG = false;
+  }
+  else if (combined_buttons & SNES_L) {
+    if (DEBUG) {
+      Serial.println("DEBUG TURNED OFF");
     }
-    else if (combined_buttons & SNES_DOWN) {
-      new_mode = PLAYERS_DIVERGE;
-      if (DEBUG) {Serial.println("PLAYERS DIVERGE");}
+    DEBUG = false;
+  }
+  else if (combined_buttons & SNES_DOWN) {
+    new_mode = PLAYERS_DIVERGE;
+    if (DEBUG) {
+      Serial.println("PLAYERS DIVERGE");
     }
-    else if (combined_buttons & SNES_LEFT) {
-      new_mode = TOGGLE_PLAYER;
-      if (DEBUG) {Serial.println("TOGGLE PLAYER SELECTED");}
+  }
+  else if (combined_buttons & SNES_LEFT) {
+    new_mode = TOGGLE_PLAYER;
+    if (DEBUG) {
+      Serial.println("TOGGLE PLAYER SELECTED");
     }
-    else if (combined_buttons & SNES_RIGHT) {
-      new_mode = TWO_CONTROL_TWO;
-      if (DEBUG) {Serial.println("TWO CONTROL TWO SELECTED");}
-    }
-    dprint("NEW MODE IS : ");
-    dprintln(new_mode);
+  }
+  else if (combined_buttons & SNES_RIGHT) {
+    new_mode = TWO_CONTROL_TWO;
+    dprintln("TWO CONTROL TWO SELECTED");
   }
   return new_mode;
 }
 
 void moveJoystick(int delayTime) {
-    // this is to tell the players that the process is finished
+  // this is to tell the players that the process is finished
   PLAYER1_BUTTONS1 = PLAYER1_BUTTONS1 = ~SNES_UP;
   delay(delayTime);
   PLAYER1_BUTTONS1 = PLAYER1_BUTTONS1 = 0xFF;
@@ -668,21 +682,30 @@ void writeToChip(uint16_t data, int writtingMode) {
 void checkSelect() {
   /*
      This method enters into the selection mode if the
-     select button is held down for selectPressTime 
+     select button is held down for selectPressTime
   */
+  
   // check to see if the select buttons state has changed
   if (p1OutputState & SNES_SELECT && !(p1LastOutputState & SNES_SELECT)) {
     // if it is pressed and the last reading it was not pressed
     // set lastSelectPress to now
     lastSelectPress = millis();
+    // DEACTIVATED!!!
   }
   else if (p1OutputState & SNES_SELECT &&
            p1LastOutputState & SNES_SELECT &&
            millis() > lastSelectPress + selectPressTime) {
     // press start and enter selection mode
-    moveJoystick(100);
-    mode = SELECTION_MODE;
+    // DEACTIVATED
+    // moveJoystick(100);
+    // mode = SELECTION_MODE;
   }
+  /*
+  if (p1LastOutputState & MODE_SELECT_MASK == MODE_SELECT_MASK ||
+    p2LastOutputState & MODE_SELECT_MASK == MODE_SELECT_MASK) {
+      mode = SELECTION_MODE;
+    }
+   */
 }
 
 // ============================================================
@@ -698,13 +721,25 @@ void printBits(uint16_t myByte) {
   }
 }
 
-void dprint(String msg){
+void dprint(String msg) {
+  if (DEBUG) {
+    Serial.print(msg);
+  }
+}
+
+void dprint(int msg) {
   if (DEBUG) {
     Serial.print(msg);
   }
 }
 
 void dprintln(String msg) {
+  if (DEBUG) {
+    Serial.println(msg);
+  }
+}
+
+void dprintln(int msg) {
   if (DEBUG) {
     Serial.println(msg);
   }
