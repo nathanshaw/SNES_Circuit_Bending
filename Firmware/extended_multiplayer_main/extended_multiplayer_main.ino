@@ -10,6 +10,11 @@
     of many brilliant programmers, hackers, engineers and artists
     (links to be added soon)
 
+    This specific version is for use with the Arduino Shield V1.
+    All the pinoutd used in this configuration will be inside the () next to
+    the normal values
+    
+
     ===========================================================
     ARDUINO : PORTS AND PINS
     ===========================================================
@@ -100,10 +105,10 @@
         6               Down on joypad              27                          44
         7               Left on joypad              28                          43
         8               Right on joypad             29                          42
-        9               A                           37                          A0
-        10              X                           36                          A1
-        11              L                           35                          A2
-        12              R                           34                          A3
+        9               A                           37                          A8
+        10              X                           36                          A9
+        11              L                           35                          A10
+        12              R                           34                          A11
         13              none (always high)         none                        none
         14              none (always high)         none                        none
         15              none (always high)         none                        none
@@ -163,7 +168,7 @@
 #define IN2_LATCH 5
 #define IN2_CLOCK 6
 #define IN2_DATA 7
-// ---------------------   PORTS -----------------------------
+// --------------------- PORTS -----------------------------
 #define PLAYER1_BUTTONS1 PORTA
 #define PLAYER1_BUTTONS2 PORTC
 #define PLAYER2_BUTTONS1 PORTL
@@ -289,32 +294,38 @@ void loop() {
       writeToChip(p1OutputState, PLAYER_ONE);
       writeToChip(p1OutputState, PLAYER_TWO);
       break;
+      
     case PLAYERS_ALTERNATE:
       p1OutputState = playersAlternate(turnLength);
       writeToChip(p1OutputState, PLAYER_ONE);
       writeToChip(p1OutputState, PLAYER_TWO);
       break;
+    
     case PLAYERS_ALTERNATE_RANDOM:
       p1OutputState = playersAlternateRandom(turnLength);
       writeToChip(p1OutputState, PLAYER_ONE);
       writeToChip(p1OutputState, PLAYER_TWO);
       break;
+    
     case PLAYERS_DIFFER:
       p1OutputState = playersDiffer();
       writeToChip(p1OutputState, PLAYER_ONE);
       writeToChip(p1OutputState, PLAYER_TWO);
       break;
+    
     case PLAYERS_BOTH_CONTROL:
       p1OutputState = bothControl();
       writeToChip(p1OutputState, PLAYER_ONE);
       writeToChip(p1OutputState, PLAYER_TWO);
       break;
+    
     case PLAYERS_DIVERGE:
       divergeTurnLength = playersDiverge();
       p1OutputState = playersAlternate(divergeTurnLength);
       writeToChip(p1OutputState, PLAYER_ONE);
       writeToChip(p1OutputState, PLAYER_TWO);
       break;
+    
     // same as players both control but output goes to both output controllers
     case TWO_CONTROL_TWO:
       p1OutputState = p2OutputState =  bothControl();
@@ -366,6 +377,7 @@ void loop() {
 // ==========================================================================
 //                               Modes of Operation
 // ==========================================================================
+
 uint16_t playerTakeover() {
   player1State = snes1.buttons();
   player2State = snes2.buttons();
