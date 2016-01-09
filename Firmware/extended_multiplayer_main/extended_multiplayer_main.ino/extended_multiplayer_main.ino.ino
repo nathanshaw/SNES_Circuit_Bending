@@ -162,12 +162,17 @@
 // the pins we use for receiving data from the two SNES controllers
 #define TRIGGER_MASK 0x0C //bitmask for both of the triggers
 // --------------------- Arduino Pins ------------------------
-#define IN1_LATCH 2
-#define IN1_CLOCK 3
-#define IN1_DATA 4
-#define IN2_LATCH 5
-#define IN2_CLOCK 6
-#define IN2_DATA 7
+#define SHIELD_VERSION 1
+#if SHIELD_VERSION == 1
+#define IN1_LATCH 12
+#define IN1_CLOCK 13
+#define IN1_DATA 11
+#define IN2_LATCH 50
+#define IN2_CLOCK 10
+#define IN2_DATA 51
+#endif
+
+#define POT_SIG A15
 // --------------------- PORTS -----------------------------
 #define PLAYER1_BUTTONS1 PORTA
 #define PLAYER1_BUTTONS2 PORTC
@@ -200,11 +205,12 @@
 // for chip write modes
 #define PLAYER_ONE 1
 #define PLAYER_TWO 2
+
 // ================================================================
 //                            Globals
 // ================================================================
 // for dev and debug
-int DEBUG = 0;
+int DEBUG = 2;
 /*
    0 is no DEBUG
    1 is regular DEBUG - adds print statements
@@ -212,7 +218,7 @@ int DEBUG = 0;
 */
 
 // for determining operating mode
-int mode = SELECTION_MODE;
+int mode = PLAYERS_BOTH_CONTROL;
 
 // dealing with which player is active as well
 // as turn durations and lengths
@@ -263,6 +269,8 @@ void setup() {
   DDRK = 0xFF;
   // set LED's port to output
   DDRF = 0xFF;
+  // set pot_pin to input
+  pinMode(POT_SIG, INPUT);
   // set controller ports to HIGH (the resting state)
   PLAYER1_BUTTONS1 = 0xFF;
   PLAYER1_BUTTONS2 = 0xFF;
@@ -277,6 +285,7 @@ void setup() {
   // allow players to select a playing mode
   mode = selectMode();
 
+  
   if (DEBUG) {
     Serial.begin(57600);
     Serial.println("SERIAL BUS OPENED");
@@ -368,6 +377,9 @@ void loop() {
   p1LastOutputState = p1OutputState;
 
   dprint(mode);
+  dprint(" : ");
+  dprint(" pot value : ");
+  dprint(analogRead(POT_SIG));
   dprint(" : ");
   if (DEBUG > 1) { delay(10);};
 }
