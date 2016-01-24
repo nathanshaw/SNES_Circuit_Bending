@@ -139,7 +139,7 @@
       =======================================================================
       for expandability and to allow for all the currently available modes of operation
       different color LEDS will be used to help provide more meaningful user feedback
-      Control for 8LED's total is provided by the shield 
+      Control for 8LED's total is provided by the shield
 
         LED Num          LED Color          Meaning
        (on Board)
@@ -154,7 +154,7 @@
           8                 Green           Corrisponds with mode (multiple can be on to allow for more than 6 modes)
 
       All of the LEDS will flash when the game is in the selection mode
-      
+
       =======================================================================
                                     General Notes
       =======================================================================
@@ -179,6 +179,7 @@
 // ================================================================
 
 #include <SNESpad.h>
+
 // the pins we use for receiving data from the two SNES controllers
 
 // --------------------- Arduino Pins ------------------------
@@ -221,6 +222,7 @@
 #define PLAYER1_BUTTONS2 PORTC
 #define PLAYER2_BUTTONS1 PORTL
 #define PLAYER2_BUTTONS2 PORTK
+#define ROTARY_INS PORTB
 #define STATUS_LEDS PORTF
 
 // --------------------- MASKS -------------------------------
@@ -262,16 +264,16 @@
 //                            Globals
 // ================================================================
 // for dev and debug
-uint8_t DEBUG = 2;
+uint8_t DEBUG = 7;
 const bool MODE_LOCK = false;
-const bool MODE_PRIORITY = SELECTION_MODE;
-                           /*
-                              0 is no DEBUG
-                              1 is regular DEBUG - adds print statements
-                              2 is same as 1 but adds delay to program
-                           */
+/*
+   0 is no DEBUG
+   1 is regular DEBUG - adds print statements
+   2 is same as 1 but adds delay to program
+*/
 // for determining operating mode
-uint8_t mode = PLAYERS_ALTERNATE;
+uint8_t mode = SELECTION_MODE;
+uint8_t CONTROL_MODE = HARDWARE_SELECT;
 // dealing with which player is active as well
 // as turn durations and lengths
 uint8_t activePlayer = PLAYER_ONE;
@@ -311,6 +313,10 @@ uint16_t player2State = 0x0000;
 uint16_t potVal;
 uint16_t lastPotVal;
 
+// variables for keeping track of the Rotary
+uint8_t rotaryState;
+uint8_t lastRotaryState;
+
 // create instances of our SNES controller reader objects
 SNESpad snes1 = SNESpad(IN1_LATCH, IN1_CLOCK, IN1_DATA);
 SNESpad snes2 = SNESpad(IN2_LATCH, IN2_CLOCK, IN2_DATA);
@@ -318,6 +324,7 @@ SNESpad snes2 = SNESpad(IN2_LATCH, IN2_CLOCK, IN2_DATA);
 // =================================================================
 //                      Setup and Loop
 // =================================================================
+
 void setup() {
   // set controller ports to outputs
   DDRA = 0xFF;
@@ -326,6 +333,8 @@ void setup() {
   DDRK = 0xFF;
   // set LED's port to output
   DDRF = 0xFF;
+  // set the ROTARY INS as inputs
+  DDRB = 0x00;
   // set pot_pin to input
   pinMode(POT_SIG, INPUT);
   // set controller ports to HIGH (the resting state)
@@ -345,7 +354,6 @@ void setup() {
     Serial.println("SERIAL BUS OPENED");
   }
 }
-
 
 void loop() {
   switch (mode) {
@@ -431,9 +439,9 @@ void loop() {
   }
   p1LastOutputState = p1OutputState;
   p2LastOutputState = p2OutputState;
-  mainLoopDebug();
   readPot();
-
+  readRotary();
+  mainLoopDebug();
 }
 
 // ==========================================================================
@@ -569,7 +577,6 @@ uint16_t playersAlternateRandom(long mTurnLength) {
     Serial.print("-OUTPUT-");
     printBits(output);
     Serial.println(" ");
-
   }
   return output;
 }
@@ -613,11 +620,18 @@ uint16_t playersAlternate(long mTurnLength) {
 // ==========================================================================
 // Helper Functions for Modes of Operations
 // ==========================================================================
+
 void mainLoopDebug() {
+  dprintln(" ");
   dprint(mode);
   dprint(" : ");
   dprint(" pv : ");
   dprint(potVal);
+  dprint(" : ");
+  for (int i = 0; i < 8; i++) {
+    dprint((rotaryState << i) & 0x01);
+  }
+  dprint(rotaryState);
   if (potVal < 1000) {
     dprint(" ");
     if (potVal < 100) {
@@ -629,7 +643,7 @@ void mainLoopDebug() {
   }
   dprint(" : ");
   if (DEBUG > 1) {
-    delay(10);
+    delay(10 * DEBUG);
   };
 }
 
@@ -637,6 +651,15 @@ uint16_t readPot() {
   lastPotVal = potVal;
   potVal = analogRead(POT_SIG);
   return potVal;
+}
+
+uint8_t readRotary() {
+  lastRotaryState = rotaryState;
+  rotaryState = ROTARY_INS;
+  if (CONTROL_MODE == HARDWARE_SELECT) {
+    mode = rotaryState;
+  }
+  return rotaryState;
 }
 
 void flashLeds() {
@@ -689,68 +712,70 @@ int selectMode() {
     // store the last button that is pressed
     // each button corrisponds to an operating mode
   */
-  int new_mode = mode;
-  uint16_t combined_buttons = snes1.buttons() & snes2.buttons();
+  if (CONTROL_MODE == SOFTWARE_SELECT) {
+    int new_mode = mode;
+    uint16_t combined_buttons = snes1.buttons() & snes2.buttons();
 
-  if (combined_buttons & SNES_Y) {
-    new_mode = PLAYERS_ALTERNATE;
-    if (DEBUG) {
-      Serial.println("PLAYERS ALTERNATE SELECTED");
+    if (combined_buttons & SNES_Y) {
+      new_mode = PLAYERS_ALTERNATE;
+      if (DEBUG) {
+        Serial.println("PLAYERS ALTERNATE SELECTED");
+      }
     }
-  }
-  else if (combined_buttons & SNES_A) {
-    new_mode = PLAYERS_AGREE;
-    if (DEBUG) {
-      Serial.println("PLAYERS AGREE SELECTED");
+    else if (combined_buttons & SNES_A) {
+      new_mode = PLAYERS_AGREE;
+      if (DEBUG) {
+        Serial.println("PLAYERS AGREE SELECTED");
+      }
     }
-  }
-  else if (combined_buttons & SNES_X) {
-    new_mode = PLAYERS_DIFFER;
-    if (DEBUG) {
-      Serial.println("PLAYERS DIFFER SELECTED");
+    else if (combined_buttons & SNES_X) {
+      new_mode = PLAYERS_DIFFER;
+      if (DEBUG) {
+        Serial.println("PLAYERS DIFFER SELECTED");
+      }
     }
-  }
-  else if (combined_buttons & SNES_B) {
-    new_mode = PLAYERS_BOTH_CONTROL;
-    if (DEBUG) {
-      Serial.println("PLAYERS BOTH CONTROL SELECTED");
+    else if (combined_buttons & SNES_B) {
+      new_mode = PLAYERS_BOTH_CONTROL;
+      if (DEBUG) {
+        Serial.println("PLAYERS BOTH CONTROL SELECTED");
+      }
     }
-  }
-  else if (combined_buttons &  SNES_UP) {
-    new_mode = PLAYERS_ALTERNATE_RANDOM;
-    if (DEBUG) {
-      Serial.println("PLAYERS ALTERNATE RANDOM SELECTED");
+    else if (combined_buttons &  SNES_UP) {
+      new_mode = PLAYERS_ALTERNATE_RANDOM;
+      if (DEBUG) {
+        Serial.println("PLAYERS ALTERNATE RANDOM SELECTED");
+      }
     }
-  }
-  else if (combined_buttons & SNES_R) {
-    DEBUG = 2;
-    if (DEBUG) {
-      Serial.println("DEBUG TURNED ON");
+    else if (combined_buttons & SNES_R) {
+      DEBUG = 2;
+      if (DEBUG) {
+        Serial.println("DEBUG TURNED ON");
+      }
     }
-  }
-  else if (combined_buttons & SNES_L) {
-    if (DEBUG) {
-      Serial.println("DEBUG TURNED OFF");
+    else if (combined_buttons & SNES_L) {
+      if (DEBUG) {
+        Serial.println("DEBUG TURNED OFF");
+      }
+      DEBUG = 0;
     }
-    DEBUG = 0;
-  }
-  else if (combined_buttons & SNES_DOWN) {
-    new_mode = PLAYERS_DIVERGE;
-    if (DEBUG) {
-      Serial.println("PLAYERS DIVERGE");
+    else if (combined_buttons & SNES_DOWN) {
+      new_mode = PLAYERS_DIVERGE;
+      if (DEBUG) {
+        Serial.println("PLAYERS DIVERGE");
+      }
     }
-  }
-  else if (combined_buttons & SNES_LEFT) {
-    new_mode = TOGGLE_PLAYER;
-    if (DEBUG) {
-      Serial.println("TOGGLE PLAYER SELECTED");
+    else if (combined_buttons & SNES_LEFT) {
+      new_mode = TOGGLE_PLAYER;
+      if (DEBUG) {
+        Serial.println("TOGGLE PLAYER SELECTED");
+      }
     }
+    else if (combined_buttons & SNES_RIGHT) {
+      new_mode = TWO_CONTROL_TWO;
+      dprintln("TWO CONTROL TWO SELECTED");
+    }
+    return new_mode;
   }
-  else if (combined_buttons & SNES_RIGHT) {
-    new_mode = TWO_CONTROL_TWO;
-    dprintln("TWO CONTROL TWO SELECTED");
-  }
-  return new_mode;
 }
 
 void moveJoystick(int delayTime) {
@@ -808,7 +833,7 @@ void checkSelect() {
      This method enters into the selection mode if the
      select button is held down for selectPressTime
   */
-  if (MODE_PRIORITY == SOFTWARE_SELECT) {
+  if (CONTROL_MODE == SOFTWARE_SELECT) {
     // check to see if the select buttons state has changed
     if (p1OutputState & SNES_SELECT && !(p1LastOutputState & SNES_SELECT)) {
       // if it is pressed and the last reading it was not pressed
@@ -831,13 +856,7 @@ void checkSelect() {
       }
     */
   }
-  else if (MODE_PRIORITY == HARDWARE_SELECT) {
-    dprint("HARD ONLY NOT IMPLIMENTED ATM!!!!!!!!!!!!!!!");
-  }
-  else if (MODE_PRIORITY == HARD_AND_SOFT_SELECT) {
-    dprint("HARD AND SOFT NOT IMPLIMENTED ATM!!!!!!!!!!!!!!!");
-  }
-  
+
 }
 
 // ============================================================
@@ -846,7 +865,7 @@ void checkSelect() {
 
 void printBits(uint16_t myByte) {
   for (uint16_t mask = 0x8000; mask; mask >>= 1) {
-    if (mask  & myByte)
+    if (mask & myByte)
       Serial.print('1');
     else
       Serial.print('0');
