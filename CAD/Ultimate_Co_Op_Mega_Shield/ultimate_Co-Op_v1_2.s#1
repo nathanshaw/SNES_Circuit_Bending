@@ -8114,8 +8114,8 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 <part name="2SELECT3" library="SparkFun-Connectors" deviceset="M01" device="PTH"/>
 <part name="2V3" library="SparkFun-Connectors" deviceset="M01" device="PTH"/>
 <part name="2B3" library="SparkFun-Connectors" deviceset="M01" device="PTH"/>
-<part name="CN1" library="con-hdrs40" deviceset="HDR-1X7" device="-MTE-100"/>
-<part name="CN2" library="con-hdrs40" deviceset="HDR-1X3" device="-MTA-100"/>
+<part name="ROTARY" library="con-hdrs40" deviceset="HDR-1X7" device="-MTE-100"/>
+<part name="SPDT" library="con-hdrs40" deviceset="HDR-1X3" device="-MTA-100"/>
 <part name="R10" library="adafruit" deviceset="R-US_" device="0204/7" value="10k"/>
 </parts>
 <sheets>
@@ -8124,7 +8124,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 <text x="40.64" y="-30.48" size="4.318" layer="95">LED's</text>
 <text x="137.16" y="91.44" size="3.81" layer="95">SNES OUTPUT #1</text>
 <text x="137.16" y="-30.48" size="3.81" layer="95">SNES OUTPUT #2</text>
-<frame x1="-68.58" y1="-152.4" x2="307.34" y2="124.46" columns="8" rows="5" layer="94"/>
+<frame x1="-91.44" y1="-162.56" x2="284.48" y2="114.3" columns="8" rows="5" layer="94"/>
 </plain>
 <instances>
 <instance part="ARDUINO_MEGA" gate="G$1" x="48.26" y="40.64"/>
@@ -8280,8 +8280,8 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 <instance part="2SELECT3" gate="G$1" x="215.9" y="-55.88" rot="R180"/>
 <instance part="2V3" gate="G$1" x="215.9" y="-48.26" rot="R180"/>
 <instance part="2B3" gate="G$1" x="215.9" y="-40.64" rot="R180"/>
-<instance part="CN1" gate="G$1" x="-38.1" y="66.04" rot="R180"/>
-<instance part="CN2" gate="G$1" x="-40.64" y="83.82" rot="R180"/>
+<instance part="ROTARY" gate="G$1" x="-38.1" y="66.04" rot="R180"/>
+<instance part="SPDT" gate="G$1" x="-40.64" y="83.82" rot="R180"/>
 <instance part="R10" gate="G$1" x="-22.86" y="76.2"/>
 </instances>
 <busses>
@@ -9236,7 +9236,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 </segment>
 <segment>
 <label x="-27.94" y="68.58" size="1.27" layer="95" xref="yes"/>
-<pinref part="CN1" gate="G$1" pin="5"/>
+<pinref part="ROTARY" gate="G$1" pin="5"/>
 <wire x1="-33.02" y1="68.58" x2="-27.94" y2="68.58" width="0.1524" layer="91"/>
 </segment>
 </net>
@@ -9248,7 +9248,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 </segment>
 <segment>
 <label x="-27.94" y="71.12" size="1.27" layer="95" xref="yes"/>
-<pinref part="CN1" gate="G$1" pin="6"/>
+<pinref part="ROTARY" gate="G$1" pin="6"/>
 <wire x1="-33.02" y1="71.12" x2="-27.94" y2="71.12" width="0.1524" layer="91"/>
 </segment>
 </net>
@@ -9260,7 +9260,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 </segment>
 <segment>
 <label x="-27.94" y="81.28" size="1.27" layer="95" xref="yes"/>
-<pinref part="CN2" gate="G$1" pin="1"/>
+<pinref part="SPDT" gate="G$1" pin="1"/>
 <wire x1="-35.56" y1="81.28" x2="-27.94" y2="81.28" width="0.1524" layer="91"/>
 </segment>
 </net>
@@ -9272,7 +9272,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 </segment>
 <segment>
 <label x="-27.94" y="83.82" size="1.27" layer="95" xref="yes"/>
-<pinref part="CN2" gate="G$1" pin="2"/>
+<pinref part="SPDT" gate="G$1" pin="2"/>
 <wire x1="-35.56" y1="83.82" x2="-27.94" y2="83.82" width="0.1524" layer="91"/>
 </segment>
 </net>
@@ -9284,7 +9284,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 </segment>
 <segment>
 <label x="-27.94" y="66.04" size="1.27" layer="95" xref="yes"/>
-<pinref part="CN1" gate="G$1" pin="4"/>
+<pinref part="ROTARY" gate="G$1" pin="4"/>
 <wire x1="-33.02" y1="66.04" x2="-27.94" y2="66.04" width="0.1524" layer="91"/>
 </segment>
 </net>
@@ -9296,7 +9296,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 </segment>
 <segment>
 <label x="-27.94" y="63.5" size="1.27" layer="95" xref="yes"/>
-<pinref part="CN1" gate="G$1" pin="3"/>
+<pinref part="ROTARY" gate="G$1" pin="3"/>
 <wire x1="-33.02" y1="63.5" x2="-27.94" y2="63.5" width="0.1524" layer="91"/>
 </segment>
 </net>
@@ -9308,7 +9308,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 </segment>
 <segment>
 <label x="-27.94" y="60.96" size="1.27" layer="95" xref="yes"/>
-<pinref part="CN1" gate="G$1" pin="2"/>
+<pinref part="ROTARY" gate="G$1" pin="2"/>
 <wire x1="-33.02" y1="60.96" x2="-27.94" y2="60.96" width="0.1524" layer="91"/>
 </segment>
 </net>
@@ -9320,7 +9320,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 </segment>
 <segment>
 <label x="-27.94" y="58.42" size="1.27" layer="95" xref="yes"/>
-<pinref part="CN1" gate="G$1" pin="1"/>
+<pinref part="ROTARY" gate="G$1" pin="1"/>
 <wire x1="-33.02" y1="58.42" x2="-27.94" y2="58.42" width="0.1524" layer="91"/>
 </segment>
 </net>
@@ -9375,7 +9375,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 <segment>
 <wire x1="-30.48" y1="86.36" x2="-27.94" y2="88.9" width="0.1524" layer="91"/>
 <pinref part="R9" gate="G$1" pin="1"/>
-<pinref part="CN2" gate="G$1" pin="3"/>
+<pinref part="SPDT" gate="G$1" pin="3"/>
 <wire x1="-35.56" y1="86.36" x2="-30.48" y2="86.36" width="0.1524" layer="91"/>
 </segment>
 </net>
@@ -9425,7 +9425,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 <segment>
 <wire x1="-30.48" y1="73.66" x2="-27.94" y2="76.2" width="0.1524" layer="91"/>
 <pinref part="R10" gate="G$1" pin="1"/>
-<pinref part="CN1" gate="G$1" pin="7"/>
+<pinref part="ROTARY" gate="G$1" pin="7"/>
 <wire x1="-33.02" y1="73.66" x2="-30.48" y2="73.66" width="0.1524" layer="91"/>
 </segment>
 </net>

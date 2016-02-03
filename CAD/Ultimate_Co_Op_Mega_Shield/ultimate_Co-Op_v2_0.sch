@@ -55,7 +55,7 @@
 <layer number="90" name="Modules" color="5" fill="1" visible="yes" active="yes"/>
 <layer number="91" name="Nets" color="2" fill="1" visible="yes" active="yes"/>
 <layer number="92" name="Busses" color="1" fill="1" visible="yes" active="yes"/>
-<layer number="93" name="Pins" color="2" fill="1" visible="no" active="yes"/>
+<layer number="93" name="Pins" color="2" fill="1" visible="yes" active="yes"/>
 <layer number="94" name="Symbols" color="4" fill="1" visible="yes" active="yes"/>
 <layer number="95" name="Names" color="7" fill="1" visible="yes" active="yes"/>
 <layer number="96" name="Values" color="7" fill="1" visible="yes" active="yes"/>
@@ -8119,6 +8119,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 <part name="R10" library="adafruit" deviceset="R-US_" device="0204/7" value="10k"/>
 <part name="GND21" library="SparkFun-Aesthetics" deviceset="GND" device=""/>
 <part name="GND22" library="SparkFun-Aesthetics" deviceset="GND" device=""/>
+<part name="R11" library="adafruit" deviceset="R-US_" device="0204/7" value="10k"/>
 </parts>
 <sheets>
 <sheet>
@@ -8127,6 +8128,12 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 <text x="137.16" y="91.44" size="3.81" layer="95">SNES OUTPUT #1</text>
 <text x="137.16" y="-30.48" size="3.81" layer="95">SNES OUTPUT #2</text>
 <frame x1="-91.44" y1="-162.56" x2="284.48" y2="114.3" columns="8" rows="5" layer="94"/>
+<text x="-76.2" y="-114.3" size="5.08" layer="94">Ultimate SNES Co-Op Shield
+            Revision 2.0
+
+           Designed by
+    Nathan Villicana-Shaw
+           Spring 2016</text>
 </plain>
 <instances>
 <instance part="ARDUINO_MEGA" gate="G$1" x="48.26" y="40.64"/>
@@ -8146,7 +8153,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 <instance part="R7" gate="G$1" x="43.18" y="-116.84"/>
 <instance part="LED8" gate="G$1" x="53.34" y="-129.54" rot="R90"/>
 <instance part="R8" gate="G$1" x="43.18" y="-129.54"/>
-<instance part="GND9" gate="1" x="20.32" y="33.02" rot="R90"/>
+<instance part="GND9" gate="1" x="-45.72" y="33.02" rot="R90"/>
 <instance part="GND10" gate="1" x="109.22" y="-7.62" rot="R270"/>
 <instance part="GND11" gate="1" x="109.22" y="-132.08" rot="R270"/>
 <instance part="GND1" gate="1" x="66.04" y="-129.54" rot="R90"/>
@@ -8187,7 +8194,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 <instance part="2B" gate="G$1" x="121.92" y="-40.64" rot="R180"/>
 <instance part="GND12" gate="1" x="17.78" y="-10.16" rot="R270"/>
 <instance part="R9" gate="G$1" x="-22.86" y="88.9"/>
-<instance part="POT" gate="G$1" x="7.62" y="35.56"/>
+<instance part="POT" gate="G$1" x="-63.5" y="35.56"/>
 <instance part="IN_1" gate="G$1" x="-15.24" y="27.94"/>
 <instance part="IN_2" gate="G$1" x="-38.1" y="15.24"/>
 <instance part="GND13" gate="1" x="-25.4" y="10.16" rot="R90"/>
@@ -8287,6 +8294,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 <instance part="R10" gate="G$1" x="-22.86" y="76.2"/>
 <instance part="GND21" gate="1" x="-12.7" y="76.2" rot="R90"/>
 <instance part="GND22" gate="1" x="-12.7" y="88.9" rot="R90"/>
+<instance part="R11" gate="G$1" x="-33.02" y="38.1"/>
 </instances>
 <busses>
 </busses>
@@ -9091,17 +9099,10 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 <label x="20.32" y="55.88" size="1.27" layer="95" rot="R180" xref="yes"/>
 </segment>
 </net>
-<net name="POT1" class="0">
-<segment>
-<pinref part="ARDUINO_MEGA" gate="G$1" pin="A15(PK7)"/>
-<wire x1="27.94" y1="35.56" x2="15.24" y2="35.56" width="0.1524" layer="91"/>
-<pinref part="POT" gate="G$1" pin="2"/>
-</segment>
-</net>
 <net name="5V" class="0">
 <segment>
-<wire x1="15.24" y1="38.1" x2="20.32" y2="38.1" width="0.1524" layer="91"/>
-<label x="20.32" y="38.1" size="1.27" layer="95" xref="yes"/>
+<wire x1="-55.88" y1="38.1" x2="-45.72" y2="38.1" width="0.1524" layer="91"/>
+<label x="-45.72" y="38.1" size="1.27" layer="95" xref="yes"/>
 <pinref part="POT" gate="G$1" pin="3"/>
 </segment>
 <segment>
@@ -9179,7 +9180,7 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 <segment>
 <pinref part="POT" gate="G$1" pin="1"/>
 <pinref part="GND9" gate="1" pin="GND"/>
-<wire x1="15.24" y1="33.02" x2="17.78" y2="33.02" width="0.1524" layer="91"/>
+<wire x1="-55.88" y1="33.02" x2="-48.26" y2="33.02" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="IN_2" gate="G$1" pin="1"/>
@@ -9433,51 +9434,163 @@ Updated 01/16/2004&lt;/i&gt;&lt;/h4&gt;</description>
 <wire x1="-33.02" y1="73.66" x2="-30.48" y2="73.66" width="0.1524" layer="91"/>
 </segment>
 </net>
+<net name="N$12" class="0">
+<segment>
+<pinref part="ARDUINO_MEGA" gate="G$1" pin="A15(PK7)"/>
+<wire x1="27.94" y1="35.56" x2="-5.08" y2="35.56" width="0.1524" layer="91"/>
+<wire x1="-5.08" y1="35.56" x2="-7.62" y2="38.1" width="0.1524" layer="91"/>
+<wire x1="-7.62" y1="38.1" x2="-10.16" y2="38.1" width="0.1524" layer="91"/>
+<wire x1="-10.16" y1="38.1" x2="-12.7" y2="40.64" width="0.1524" layer="91"/>
+<wire x1="-12.7" y1="40.64" x2="-17.78" y2="40.64" width="0.1524" layer="91"/>
+<wire x1="-17.78" y1="40.64" x2="-20.32" y2="38.1" width="0.1524" layer="91"/>
+<pinref part="R11" gate="G$1" pin="2"/>
+<wire x1="-20.32" y1="38.1" x2="-27.94" y2="38.1" width="0.1524" layer="91"/>
+</segment>
+</net>
+<net name="N$15" class="0">
+<segment>
+<pinref part="R11" gate="G$1" pin="1"/>
+<wire x1="-38.1" y1="38.1" x2="-40.64" y2="35.56" width="0.1524" layer="91"/>
+<pinref part="POT" gate="G$1" pin="2"/>
+<wire x1="-40.64" y1="35.56" x2="-55.88" y2="35.56" width="0.1524" layer="91"/>
+</segment>
+</net>
 </nets>
 </sheet>
 </sheets>
 <errors>
-<approved hash="113,1,229.87,86.6817,LED1,,,,,"/>
-<approved hash="113,1,229.87,73.9817,LED2,,,,,"/>
-<approved hash="113,1,229.87,61.2817,LED3,,,,,"/>
-<approved hash="113,1,229.87,48.5817,LED4,,,,,"/>
-<approved hash="113,1,229.87,35.8817,LED5,,,,,"/>
-<approved hash="113,1,229.87,23.1817,LED6,,,,,"/>
-<approved hash="113,1,229.87,10.4817,LED7,,,,,"/>
-<approved hash="113,1,229.87,-2.21827,LED8,,,,,"/>
-<approved hash="113,1,-11.9526,71.5687,ROTARY_SWITCH,,,,,"/>
-<approved hash="113,1,117.517,82.3553,1B,,,,,"/>
-<approved hash="113,1,117.517,74.7353,1V,,,,,"/>
-<approved hash="113,1,117.517,67.1153,1SELECT,,,,,"/>
-<approved hash="113,1,117.517,59.4953,1START,,,,,"/>
-<approved hash="113,1,117.517,51.8753,1UP,,,,,"/>
-<approved hash="113,1,117.517,44.2553,1DOWN,,,,,"/>
-<approved hash="113,1,117.517,36.6353,1LEFT,,,,,"/>
-<approved hash="113,1,117.517,29.0153,1RIGHT,,,,,"/>
-<approved hash="113,1,117.517,21.3953,1A,,,,,"/>
-<approved hash="113,1,117.517,13.7753,1X,,,,,"/>
-<approved hash="113,1,117.517,6.15527,1L,,,,,"/>
-<approved hash="113,1,117.517,-1.46473,1R,,,,,"/>
-<approved hash="113,1,117.517,-9.08473,1GND,,,,,"/>
-<approved hash="113,1,117.517,-16.7047,1VIN,,,,,"/>
-<approved hash="113,1,170.857,-16.7047,2VIN,,,,,"/>
-<approved hash="113,1,170.857,-9.08473,2GND,,,,,"/>
-<approved hash="113,1,170.857,-1.46473,2R,,,,,"/>
-<approved hash="113,1,170.857,6.15527,2L,,,,,"/>
-<approved hash="113,1,170.857,13.7753,2X,,,,,"/>
-<approved hash="113,1,170.857,21.3953,2A,,,,,"/>
-<approved hash="113,1,170.857,29.0153,2RIGHT,,,,,"/>
-<approved hash="113,1,170.857,36.6353,2LEFT,,,,,"/>
-<approved hash="113,1,170.857,44.2553,2DOWN,,,,,"/>
-<approved hash="113,1,170.857,51.8753,2UP,,,,,"/>
-<approved hash="113,1,170.857,59.4953,2START,,,,,"/>
-<approved hash="113,1,170.857,67.1153,2SELECT,,,,,"/>
-<approved hash="113,1,170.857,74.7353,2V,,,,,"/>
-<approved hash="113,1,170.857,82.3553,2B,,,,,"/>
+<approved hash="113,1,54.61,-40.3183,LED1,,,,,"/>
+<approved hash="113,1,54.61,-53.0183,LED2,,,,,"/>
+<approved hash="113,1,54.61,-65.7183,LED3,,,,,"/>
+<approved hash="113,1,54.61,-78.4183,LED4,,,,,"/>
+<approved hash="113,1,54.61,-91.1183,LED5,,,,,"/>
+<approved hash="113,1,54.61,-103.818,LED6,,,,,"/>
+<approved hash="113,1,54.61,-116.518,LED7,,,,,"/>
+<approved hash="113,1,54.61,-129.218,LED8,,,,,"/>
+<approved hash="113,1,117.517,82.3553,B,,,,,"/>
+<approved hash="113,1,117.517,74.7353,Y,,,,,"/>
+<approved hash="113,1,117.517,67.1153,SEL,,,,,"/>
+<approved hash="113,1,117.517,59.4953,START,,,,,"/>
+<approved hash="113,1,117.517,51.8753,UP,,,,,"/>
+<approved hash="113,1,117.517,44.2553,DOWN,,,,,"/>
+<approved hash="113,1,117.517,36.6353,LEFT,,,,,"/>
+<approved hash="113,1,117.517,29.0153,RIGHT,,,,,"/>
+<approved hash="113,1,117.517,21.3953,A1,,,,,"/>
+<approved hash="113,1,117.517,13.7753,X1,,,,,"/>
+<approved hash="113,1,117.517,6.15527,L,,,,,"/>
+<approved hash="113,1,117.517,-1.46473,R,,,,,"/>
+<approved hash="113,1,117.517,-9.08473,GND,,,,,"/>
+<approved hash="113,1,117.517,-16.7047,VIN,,,,,"/>
+<approved hash="113,1,117.517,-141.165,2VIN,,,,,"/>
+<approved hash="113,1,117.517,-133.545,2GND,,,,,"/>
+<approved hash="113,1,117.517,-125.925,2R,,,,,"/>
+<approved hash="113,1,117.517,-118.305,2L,,,,,"/>
+<approved hash="113,1,117.517,-110.685,2X,,,,,"/>
+<approved hash="113,1,117.517,-103.065,2A,,,,,"/>
+<approved hash="113,1,117.517,-95.4447,2RIGHT,,,,,"/>
+<approved hash="113,1,117.517,-87.8247,2LEFT,,,,,"/>
+<approved hash="113,1,117.517,-80.2047,2DOWN,,,,,"/>
+<approved hash="113,1,117.517,-72.5847,2UP,,,,,"/>
+<approved hash="113,1,117.517,-64.9647,2START,,,,,"/>
+<approved hash="113,1,117.517,-57.3447,2SELECT,,,,,"/>
+<approved hash="113,1,117.517,-49.7247,2V,,,,,"/>
+<approved hash="113,1,117.517,-42.1047,2B,,,,,"/>
 <approved hash="113,1,12.0227,37.0247,POT,,,,,"/>
 <approved hash="113,1,-10.8373,29.4047,IN_1,,,,,"/>
 <approved hash="113,1,-33.6973,16.7047,IN_2,,,,,"/>
+<approved hash="113,1,147.997,82.3553,1B1,,,,,"/>
+<approved hash="113,1,147.997,74.7353,1Y1,,,,,"/>
+<approved hash="113,1,147.997,67.1153,1SELECT1,,,,,"/>
+<approved hash="113,1,147.997,59.4953,1START1,,,,,"/>
+<approved hash="113,1,147.997,51.8753,1UP1,,,,,"/>
+<approved hash="113,1,147.997,44.2553,1DOWN1,,,,,"/>
+<approved hash="113,1,147.997,36.6353,1LEFT1,,,,,"/>
+<approved hash="113,1,147.997,29.0153,1RIGHT1,,,,,"/>
+<approved hash="113,1,147.997,21.3953,A,,,,,"/>
+<approved hash="113,1,147.997,13.7753,X,,,,,"/>
+<approved hash="113,1,147.997,6.15527,1L1,,,,,"/>
+<approved hash="113,1,147.997,-1.46473,1R1,,,,,"/>
+<approved hash="113,1,147.997,-9.08473,1GND1,,,,,"/>
+<approved hash="113,1,147.997,-16.7047,1VIN1,,,,,"/>
+<approved hash="113,1,178.477,82.3553,1B2,,,,,"/>
+<approved hash="113,1,178.477,74.7353,1Y2,,,,,"/>
+<approved hash="113,1,178.477,67.1153,1SELECT2,,,,,"/>
+<approved hash="113,1,178.477,59.4953,1START2,,,,,"/>
+<approved hash="113,1,178.477,51.8753,1UP2,,,,,"/>
+<approved hash="113,1,178.477,44.2553,1DOWN2,,,,,"/>
+<approved hash="113,1,178.477,36.6353,1LEFT2,,,,,"/>
+<approved hash="113,1,178.477,29.0153,1RIGHT2,,,,,"/>
+<approved hash="113,1,178.477,21.3953,1A2,,,,,"/>
+<approved hash="113,1,178.477,13.7753,1X2,,,,,"/>
+<approved hash="113,1,178.477,6.15527,1L2,,,,,"/>
+<approved hash="113,1,178.477,-1.46473,1R2,,,,,"/>
+<approved hash="113,1,178.477,-9.08473,1GND2,,,,,"/>
+<approved hash="113,1,178.477,-16.7047,1VIN2,,,,,"/>
+<approved hash="113,1,208.957,82.3553,1B3,,,,,"/>
+<approved hash="113,1,208.957,74.7353,1Y3,,,,,"/>
+<approved hash="113,1,208.957,67.1153,1SELECT3,,,,,"/>
+<approved hash="113,1,208.957,59.4953,1START3,,,,,"/>
+<approved hash="113,1,208.957,51.8753,1UP3,,,,,"/>
+<approved hash="113,1,208.957,44.2553,1DOWN3,,,,,"/>
+<approved hash="113,1,208.957,36.6353,1LEFT3,,,,,"/>
+<approved hash="113,1,208.957,29.0153,1RIGHT3,,,,,"/>
+<approved hash="113,1,208.957,21.3953,1A3,,,,,"/>
+<approved hash="113,1,208.957,13.7753,1X3,,,,,"/>
+<approved hash="113,1,208.957,6.15527,1L3,,,,,"/>
+<approved hash="113,1,208.957,-1.46473,1R3,,,,,"/>
+<approved hash="113,1,208.957,-9.08473,1GND3,,,,,"/>
+<approved hash="113,1,208.957,-16.7047,1VIN3,,,,,"/>
+<approved hash="113,1,147.997,-141.165,2VIN1,,,,,"/>
+<approved hash="113,1,147.997,-133.545,2GND1,,,,,"/>
+<approved hash="113,1,147.997,-125.925,2R1,,,,,"/>
+<approved hash="113,1,147.997,-118.305,2L1,,,,,"/>
+<approved hash="113,1,147.997,-110.685,2X1,,,,,"/>
+<approved hash="113,1,147.997,-103.065,2A1,,,,,"/>
+<approved hash="113,1,147.997,-95.4447,2RIGHT1,,,,,"/>
+<approved hash="113,1,147.997,-87.8247,2LEFT1,,,,,"/>
+<approved hash="113,1,147.997,-80.2047,2DOWN1,,,,,"/>
+<approved hash="113,1,147.997,-72.5847,2UP1,,,,,"/>
+<approved hash="113,1,147.997,-64.9647,2START1,,,,,"/>
+<approved hash="113,1,147.997,-57.3447,2SELECT1,,,,,"/>
+<approved hash="113,1,147.997,-49.7247,2V1,,,,,"/>
+<approved hash="113,1,147.997,-42.1047,2B1,,,,,"/>
+<approved hash="113,1,181.017,-141.165,2VIN2,,,,,"/>
+<approved hash="113,1,181.017,-133.545,2GND2,,,,,"/>
+<approved hash="113,1,181.017,-125.925,2R2,,,,,"/>
+<approved hash="113,1,181.017,-118.305,2L2,,,,,"/>
+<approved hash="113,1,181.017,-110.685,2X2,,,,,"/>
+<approved hash="113,1,181.017,-103.065,2A2,,,,,"/>
+<approved hash="113,1,181.017,-95.4447,2RIGHT2,,,,,"/>
+<approved hash="113,1,181.017,-87.8247,2LEFT2,,,,,"/>
+<approved hash="113,1,181.017,-80.2047,2DOWN2,,,,,"/>
+<approved hash="113,1,181.017,-72.5847,2UP2,,,,,"/>
+<approved hash="113,1,181.017,-64.9647,2START2,,,,,"/>
+<approved hash="113,1,181.017,-57.3447,2SELECT2,,,,,"/>
+<approved hash="113,1,181.017,-49.7247,2V2,,,,,"/>
+<approved hash="113,1,181.017,-42.1047,2B2,,,,,"/>
+<approved hash="113,1,211.497,-141.165,2VIN3,,,,,"/>
+<approved hash="113,1,211.497,-133.545,2GND3,,,,,"/>
+<approved hash="113,1,211.497,-125.925,2R3,,,,,"/>
+<approved hash="113,1,211.497,-118.305,2L3,,,,,"/>
+<approved hash="113,1,211.497,-110.685,2X3,,,,,"/>
+<approved hash="113,1,211.497,-103.065,2A3,,,,,"/>
+<approved hash="113,1,211.497,-95.4447,2RIGHT3,,,,,"/>
+<approved hash="113,1,211.497,-87.8247,2LEFT3,,,,,"/>
+<approved hash="113,1,211.497,-80.2047,2DOWN3,,,,,"/>
+<approved hash="113,1,211.497,-72.5847,2UP3,,,,,"/>
+<approved hash="113,1,211.497,-64.9647,2START3,,,,,"/>
+<approved hash="113,1,211.497,-57.3447,2SELECT3,,,,,"/>
+<approved hash="113,1,211.497,-49.7247,2V3,,,,,"/>
+<approved hash="113,1,211.497,-42.1047,2B3,,,,,"/>
+<approved hash="113,1,-37.9308,64.5245,ROTARY,,,,,"/>
+<approved hash="113,1,-38.6767,82.3045,SPDT,,,,,"/>
 </errors>
 </schematic>
 </drawing>
+<compatibility>
+<note version="6.3" minversion="6.2.2" severity="warning">
+Since Version 6.2.2 text objects can contain more than one line,
+which will not be processed correctly with this version.
+</note>
+</compatibility>
 </eagle>
