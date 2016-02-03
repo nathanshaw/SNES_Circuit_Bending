@@ -184,7 +184,7 @@
 
 // --------------------- Arduino Pins ------------------------
 
-#define SHIELD_VERSION 1 // 0 is no shield proto, 1 is v1 of shield, 2 is v1.1 of shield
+#define SHIELD_VERSION 2 // 0 is no shield proto, 1 is v1 of shield, 2 is v1.1 of shield
 
 #if SHIELD_VERSION == 2
 #define IN1_LATCH 3
@@ -231,56 +231,39 @@
 #define TRIGGER_MASK 0x0C //bitmask for both of the triggers
 
 // ------------------------ MODES ----------------------------
-// these variables are use for both switching between the different modes
-// as well as applying a bit mask to turn on LED's for user feedback
-
-#define SELECTION_MODE 0x00            // Allows for selecting one of the modes below
-#define PLAYERS_AGREE 0x05             // (AND) both players have to press a button
-#define PLAYERS_ALTERNATE 0x09         // players take turns
-#define PLAYERS_ALTERNATE_RANDOM 0x11  // players take turns of random length
-#define PLAYERS_DIFFER 0x21            // (XOR) if both players press a button it does not go through
-#define PLAYERS_BOTH_CONTROL 0x41      // (OR) both players signal gets passed w/o resistance
-#define PLAYERS_DIVERGE 0x81           // (XOR) messages only pass if it is not present in both controllers
-#define ONE_TO_FOUR 0x06               /// this mode simply passes the controls on through
-// modes of operation for ultimate competative functionality
-#define PLAYER_TAKEOVER 0x0A           // you are able to "take over" opponent controls
-// modes for playing solo
-#define TWO_CONTROL_TWO 0x12           // each controller controls each output w/o resistance
-// perhaps two_control_two should be an option selected via hardware.
-#define TOGGLE_PLAYER 0x22            // you can manually switch between output controllers
+// single player modes
+#define SP_BOTH_CONTROL 0x05 //0x41      // (OR) both players signal gets passed w/o resistance
+#define SP_AGREE 0x09 //0x05             // (AND) both players have to press a button
+#define SP_ALTERNATE 0x11 //0x09         // players take turns
+#define SP_ALTERNATE_RANDOM 0x21 //0x11  // players take turns of random length
+#define SP_DIVERGE 0x41 //0x81           // (XOR) messages only pass if it is not present in both controllers
+#define SP_DIFFER 0x81 //0x21            // (XOR) if both players press a button it does not go through
+// multiplayer modes
+#define MP_BOTH_CONTROL 0x06 //0x41      // (OR) both players signal gets passed w/o resistance
+#define MP_AGREE 0x0A //0x05             // (AND) both players have to press a button
+#define MP_ALTERNATE 0x12 //0x09         // players take turns
+#define MP_ALTERNATE_RANDOM 0x22 //0x11  // players take turns of random length
+#define MP_DIVERGE 0x42 //0x81           // (XOR) messages only pass if it is not present in both controllers
+#define MP_DIFFER 0x82 //0x21            // (XOR) if both players press a button it does not go through
 
 // --------------------- Controlers and Players -------------------
 
-// number of players or input controllers
-#define NUM_PLAYERS 2
 // for chip write modes
 #define PLAYER_ONE 1
 #define PLAYER_TWO 2
 
-#define HARD_AND_SOFT_SELECT 0
-#define SOFTWARE_SELECT 1
-#define HARDWARE_SELECT 2
-#define CONTROL_LOCKOUT 3
-
-// ------------------ PROGRAMS -----------------------------
-#define ULTIMATE_CO_OP_PROGRAM 1
-#define ONE_TO_FOUR_PROGRAM 2
-
-#define PROGRAM 2
 // ================================================================
 //                            Globals
 // ================================================================
 // for dev and debug
-uint8_t DEBUG = 7;
+uint8_t DEBUG = 2;
 /*
    0 is no DEBUG
    1 is regular DEBUG - adds print statements
    2 is same as 1 but adds delay to program
 */
 // for determining operating mode
-uint8_t mode = SELECTION_MODE;
-uint8_t CONTROL_MODE = HARDWARE_SELECT;
-bool MODE_LOCK = false;
+uint8_t mode = SP_AGREE;
 // dealing with which player is active as well
 // as turn durations and lengths
 uint8_t activePlayer = PLAYER_ONE;
@@ -340,6 +323,8 @@ void setup() {
   DDRK = 0xFF;
   // set LED's port to output
   DDRF = 0xFF;
+  // turn on pullup resistors for rotary
+  ROTARY_AND_SWITCH = 0xFF;
   // set the ROTARY INS as inputs
   DDRB = 0x00;
   // sloppy troubleshooting
@@ -354,8 +339,6 @@ void setup() {
   STATUS_LEDS = 0x00;
   // let things settle
   delay(10);
-  // allow players to select a playing mode
-  mode = selectMode();
 
   if (DEBUG) {
     Serial.begin(57600);
@@ -365,72 +348,65 @@ void setup() {
 
 void loop() {
   switch (mode) {
-    // -------------------------------------------------
-    // Modes for two players playing as one character
-    // -------------------------------------------------
-    case PLAYERS_AGREE:
+    default:
+      Serial.print("Error mode not detected : ");
+      Serial.println(mode);
+      mode = mode + 1;
+      
+    case MP_AGREE:
+      mode = SP_AGREE;
+      
+    case SP_AGREE:
       p1OutputState = p2OutputState = playersAgree();
       writeToChip(p1OutputState, p2OutputState);
       break;
 
-    case PLAYERS_ALTERNATE:
+    case MP_ALTERNATE:
+      mode = SP_ALTERNATE;
+    
+    case SP_ALTERNATE:
       p1OutputState = p2OutputState = playersAlternate(turnLength);
       writeToChip(p1OutputState, p2OutputState);
       break;
+      
+    case MP_ALTERNATE_RANDOM:
+      mode = SP_ALTERNATE_RANDOM;
 
-    case PLAYERS_ALTERNATE_RANDOM:
+    case SP_ALTERNATE_RANDOM:
       p1OutputState = p2OutputState = playersAlternateRandom(turnLength);
       writeToChip(p1OutputState, p2OutputState);
       break;
-
-    case PLAYERS_DIFFER:
+    
+    case MP_DIFFER:
+      mode = SP_DIFFER;
+      
+    case SP_DIFFER:
       p1OutputState = p2OutputState = playersDiffer();
       writeToChip(p1OutputState, p2OutputState);
       break;
 
-    case PLAYERS_BOTH_CONTROL:
+    case MP_BOTH_CONTROL:
+      mode = SP_BOTH_CONTROL;
+
+    case SP_BOTH_CONTROL:
       p1OutputState = p2OutputState = bothControl();
       writeToChip(p1OutputState, p2OutputState);
       break;
 
-    case PLAYERS_DIVERGE:
+    case MP_DIVERGE:
+      mode = SP_DIVERGE;
+      
+    case SP_DIVERGE:
       divergeTurnLength = playersDiverge();
       p1OutputState = p2OutputState = playersAlternate(divergeTurnLength);
       writeToChip(p1OutputState, p2OutputState);
       break;
 
-    // same as players both control but output goes to both output controllers
-    case TWO_CONTROL_TWO:
-      p1OutputState = p2OutputState =  bothControl();
-      writeToChip(p1OutputState, p2OutputState);
-      break;
-    // -------------------------------------------------
-    // Modes for one player play as multiple characters
-    // -------------------------------------------------
-    case TOGGLE_PLAYER:
-      p1OutputState = bothControl();
-      activePlayer = determineOutputController();
-      writeToChip(p1OutputState, activePlayer);
-      break;
-    //--------------------------------------------------
-    // Modes for two players playing a VS game (KillerInstinct)
-    // -------------------------------------------------
-    // case PLAYER_TAKEOVER:
-    //  playerTakeover();
-    //  writeToChip(player1State, PLAYER_ONE);
-    //  writeToChip(player2State, PLAYER_TWO);
-    //  break;
-    // -------------------------------------------------
-    // The Selection Mode for switching between all the other modes
-    // -------------------------------------------------
-    case SELECTION_MODE:
-      mode = selectMode();
-      break;
-      // -----------------------
   }
+  
   flashLeds();
-  // only allow for mode changes if mode lock is false
-  readRotary();
+  mode = readRotary();
+  ROTARY_AND_SWITCH = 0xFF;
   p1LastOutputState = p1OutputState;
   p2LastOutputState = p2OutputState;
   readPot();
@@ -466,20 +442,7 @@ uint16_t bothControl() {
   player1State = snes1.buttons();
   player2State = snes2.buttons();
   output = player1State | player2State;
-  if (DEBUG) {
-    if (mode == PLAYERS_BOTH_CONTROL) {
-      Serial.print("BOTH CONTROL : ");
-    }
-    else if (mode == TWO_CONTROL_TWO) {
-      Serial.print("TWO CONTROL TWO : ");
-    }
-    printBits(player1State);
-    Serial.print("-");
-    printBits(player2State);
-    Serial.print("-OUTPUT-");
-    printBits(output);
-    Serial.println(" ");
-  }
+  dprintState("BOTH CONTROL : ", player1State, player2State);
   return output;
 }
 
@@ -493,16 +456,7 @@ uint16_t playersAgree() {
   player1State = snes1.buttons();
   player2State = snes2.buttons();
   output = player1State & player2State;
-
-  if (DEBUG) {
-    Serial.print("PLAYERS AGREE : ");
-    printBits(player1State);
-    Serial.print("-");
-    printBits(player2State);
-    Serial.print("-OUTPUT-");
-    printBits(output);
-    Serial.println(" ");
-  }
+  dprintState("PLAYERS AGREE :", player1State, player2State);  
   return output;
 }
 
@@ -516,16 +470,7 @@ uint16_t playersDiffer() {
   player1State = snes1.buttons();
   player2State = snes2.buttons();
   output = player2State ^ player1State;
-  if (DEBUG) {
-    Serial.print("PLAYERS DIFFER : ");
-    printBits(player1State);
-    Serial.print("-");
-    printBits(player2State);
-    Serial.print("-OUTPUT-");
-    printBits(output);
-    Serial.println(" ");
-  }
-
+  dprintState("PLAYERS DIFFER : ", player1State, player2State);
   return output;
 }
 
@@ -547,7 +492,7 @@ uint16_t playersAlternateRandom(long mTurnLength) {
   player1State = snes1.buttons();
   player2State = snes2.buttons();
   if (millis() > turnStart + mTurnLength) {
-    activePlayer = (activePlayer + 1) % NUM_PLAYERS;
+    activePlayer = (activePlayer + 1) % 2;
     turnStart = millis();
     dprint("Player");
     dprintln(activePlayer + 1);
@@ -560,16 +505,7 @@ uint16_t playersAlternateRandom(long mTurnLength) {
   else if (activePlayer == 1) {
     output = player2State;
   }
-
-  if (DEBUG) {
-    Serial.print("Players Alernating Random : ");
-    printBits(player1State);
-    Serial.print("-");
-    printBits(player2State);
-    Serial.print("-OUTPUT-");
-    printBits(output);
-    Serial.println(" ");
-  }
+  dprintState("PLAYERS ALTERNATING RANDOM : ", player1State, player2State);
   return output;
 }
 
@@ -583,7 +519,7 @@ uint16_t playersAlternate(long mTurnLength) {
   player1State = snes1.buttons();
   player2State = snes2.buttons();
   if (millis() > turnStart + mTurnLength) {
-    activePlayer = (activePlayer + 1) % NUM_PLAYERS;
+    activePlayer = (activePlayer + 1) % 2;
     turnStart = millis();
     if (DEBUG) {
       Serial.print("Player : ");
@@ -596,16 +532,7 @@ uint16_t playersAlternate(long mTurnLength) {
   else if (activePlayer == 1) {
     output = player2State;
   }
-
-  if (DEBUG) {
-    Serial.print("PLAYERS ALTERNATING : ");
-    printBits(player1State);
-    Serial.print("-");
-    printBits(player2State);
-    Serial.print("-OUTPUT-");
-    printBits(output);
-    Serial.println(" ");
-  }
+  dprintState("PLAYERS ALTERNATING :", player1State, player2State);
   return output;
 }
 
@@ -619,11 +546,11 @@ void mainLoopDebug() {
   dprint(" : ");
   dprint(" pv : ");
   dprint(potVal);
-  dprint(" : ");
-  for (int i = 0; i < 8; i++) {
-    dprint((rotaryState << i) & 0x01);
-  }
-  dprint(rotaryState);
+  // dprint(" : Rotary State : ");
+  // for (int i = 0; i < 8; i++) {
+  //  dprint((rotaryState << i) & 0x01);
+  // }
+  // dprint(rotaryState);
   if (potVal < 1000) {
     dprint(" ");
     if (potVal < 100) {
@@ -637,6 +564,10 @@ void mainLoopDebug() {
   if (DEBUG > 1) {
     delay(10 * DEBUG);
   };
+  dprint(" OUTPUTS : ");
+  printBits(p1OutputState);
+  dprint(" : ");
+  printBits(p2OutputState);
 }
 
 uint16_t readPot() {
@@ -647,12 +578,7 @@ uint16_t readPot() {
 
 uint8_t readRotary() {
   lastRotaryState = rotaryState;
-  rotaryState = PORTB;
-  rotaryState = digitalRead(13) << 7 | digitalRead(12) << 6 | digitalRead(11) << 5 | digitalRead(10) << 4 | digitalRead(50) << 3 | digitalRead(51) << 2 | digitalRead(52) << 1 | digitalRead(53);
-  Serial.print(rotaryState);
-  //if (CONTROL_MODE == HARDWARE_SELECT) {
-  mode = rotaryState;
-  //}
+  rotaryState = ~PINB;
   return rotaryState;
 }
 
@@ -705,14 +631,14 @@ int determineOutputController() {
 
 void writeToChip(uint16_t data, uint8_t writtingMode) {
   if (writtingMode == PLAYER_ONE) {
-    if (p1LastOutputState != data){
+    if (p1LastOutputState != data) {
       PLAYER1_BUTTONS1 = ~(byte)data;
       PLAYER1_BUTTONS2 = ~((data >> 8) | 0x00);
       p1LastOutputState = data;
     }
   }
   else if (writtingMode == PLAYER_TWO) {
-    if (p2LastOutputState != data){
+    if (p2LastOutputState != data) {
       PLAYER2_BUTTONS1 = ~(byte)data;
       PLAYER2_BUTTONS2 = ~((data >> 8) | 0x00);
       p2LastOutputState = data;
@@ -720,25 +646,44 @@ void writeToChip(uint16_t data, uint8_t writtingMode) {
   }
 }
 
-void writeToSchip(uint16_t player1, uint16_t player2) {
-    if (p1LastOutputState != player1){
-      PLAYER1_BUTTONS1 = ~(byte)player1;
-      PLAYER1_BUTTONS2 = ~((player1 >> 8) | 0x00);
-      p1LastOutputState = player1;
-    }
-    if (p2LastOutputState != player2){
-      PLAYER2_BUTTONS1 = ~(byte)player2;
-      PLAYER2_BUTTONS2 = ~((player2 >> 8) | 0x00);
-      p2LastOutputState = player2;
-    }
+void writeToChip(uint16_t player1, uint16_t player2) {
+  if (p1LastOutputState != player1) {
+    PLAYER1_BUTTONS1 = ~(byte)player1;
+    PLAYER1_BUTTONS2 = ~((player1 >> 8) | 0x00);
+    p1LastOutputState = player1;
+  }
+  if (p2LastOutputState != player2) {
+    PLAYER2_BUTTONS1 = ~(byte)player2;
+    PLAYER2_BUTTONS2 = ~((player2 >> 8) | 0x00);
+    p2LastOutputState = player2;
+  }
 }
 
 // ============================================================
 // ------------ Printing and DeBugging ----------------
 // ============================================================
 
+void dprintState(String modeString, uint16_t player1State, uint16_t player2State) {
+  if (DEBUG) {
+    Serial.print(modeString);
+    printBits(player1State);
+    Serial.print("-");
+    printBits(player2State);
+    Serial.print("-");
+  }
+}
+
 void printBits(uint16_t myByte) {
   for (uint16_t mask = 0x8000; mask; mask >>= 1) {
+    if (mask & myByte)
+      Serial.print('1');
+    else
+      Serial.print('0');
+  }
+}
+
+void printBits(uint8_t myByte) {
+  for (uint8_t mask = 0x80; mask; mask >>= 1) {
     if (mask & myByte)
       Serial.print('1');
     else

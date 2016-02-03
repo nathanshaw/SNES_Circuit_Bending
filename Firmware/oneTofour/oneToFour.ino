@@ -184,6 +184,9 @@
 
 // --------------------- Arduino Pins ------------------------
 
+#define SHIELD_VERSION 2 // 0 is no shield proto, 1 is v1 of shield, 2 is v1.1 of shield
+
+#if SHIELD_VERSION == 2
 #define IN1_LATCH 3
 #define IN1_CLOCK 2
 #define IN1_DATA 5
@@ -191,6 +194,27 @@
 #define IN2_CLOCK 6
 #define IN2_DATA 8
 #define POT_SIG A15
+#endif
+
+#if SHIELD_VERSION == 1
+#define IN1_LATCH 12
+#define IN1_CLOCK 13
+#define IN1_DATA 11
+#define IN2_LATCH 50
+#define IN2_CLOCK 10
+#define IN2_DATA 51
+#define POT_SIG A15
+#endif
+
+#if SHIELD_VERSION == 0
+#define IN1_LATCH 2
+#define IN1_CLOCK 3
+#define IN1_DATA 4
+#define IN2_LATCH 5
+#define IN2_CLOCK 6
+#define IN2_DATA 7
+#define POT_SIG A15
+#endif
 
 // --------------------- PORTS -----------------------------
 
@@ -215,7 +239,7 @@
 //                            Globals
 // ================================================================
 // for dev and debug
-uint8_t DEBUG = 7;
+uint8_t DEBUG = 3;
 /*
    0 is no DEBUG
    1 is regular DEBUG - adds print statements
@@ -275,53 +299,20 @@ void setup() {
 }
 
 void loop() {
-      p1OutputState = snes1.buttons();
-      p2OutputState = snes2.buttons();
-      if (DEBUG){
-        dprint(" ");
-        printBits(p1OutputState);
-        dprint(" : ");
-        printBits(p2OutputState);
-      }
-      writeToChip(p1OutputState, PLAYER_ONE);
-      writeToChip(p2OutputState, PLAYER_TWO);
-  
-  flashLeds();
   p1LastOutputState = p1OutputState;
   p2LastOutputState = p2OutputState;
-}
-
-// ==========================================================================
-//                               Modes of Operation
-// ==========================================================================
-
-
-uint16_t bothControl() {
-  /*
-     This function returns any buttons pressed by either controller
-  */
-  uint16_t output;
-  player1State = snes1.buttons();
-  player2State = snes2.buttons();
-  output = player1State | player2State;
-  if (DEBUG) {
-    if (mode == PLAYERS_BOTH_CONTROL) {
-      dprint("BOTH CONTROL : ");
-    }
-    else if (mode == TWO_CONTROL_TWO) {
-      dprint("TWO CONTROL TWO : ");
-    }
-    printBits(player1State);
-    dprint("-");
-    printBits(player2State);
-    dprint("-OUTPUT-");
-    printBits(output);
-    dprintln(" ");
+  p1OutputState = snes1.buttons();
+  p2OutputState = snes2.buttons();
+  if (DEBUG){
+    dprint(" ");
+    printBits(p1OutputState);
+    dprint(" : ");
+    printBits(p2OutputState);
   }
-  return output;
+  writeToChip(p1OutputState, PLAYER_ONE);
+  writeToChip(p2OutputState, PLAYER_TWO);
+  flashLeds();
 }
-
-
 
 // ==========================================================================
 // Helper Functions for Modes of Operations
@@ -336,7 +327,6 @@ void flashLeds() {
     lastFlash = millis();
   }
 }
-
 
 // ==========================================================================
 //                       Communicating with the SNES('s)
