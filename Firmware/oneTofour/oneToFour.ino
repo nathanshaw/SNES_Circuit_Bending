@@ -289,9 +289,6 @@ void setup() {
   STATUS_LEDS = 0x00;
   // let things settle
   delay(10);
-  // allow players to select a playing mode
-  mode = selectMode();
-
   if (DEBUG) {
     Serial.begin(57600);
     dprintln("SERIAL BUS OPENED");
@@ -311,21 +308,6 @@ void loop() {
   }
   writeToChip(p1OutputState, PLAYER_ONE);
   writeToChip(p2OutputState, PLAYER_TWO);
-  flashLeds();
-}
-
-// ==========================================================================
-// Helper Functions for Modes of Operations
-// ==========================================================================
-
-void flashLeds() {
-  if (mode != 0) {
-    STATUS_LEDS = mode;
-  }
-  else if (millis() > lastFlash + slowFlash) {
-    STATUS_LEDS = ~STATUS_LEDS;
-    lastFlash = millis();
-  }
 }
 
 // ==========================================================================

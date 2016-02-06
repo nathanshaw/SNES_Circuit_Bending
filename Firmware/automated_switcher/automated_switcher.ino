@@ -16,14 +16,15 @@ uint64_t lastButtonPress = 0;
 
 // switching output
 uint64_t lastSwitch = 0;
-float turnMult = 1.0;
+float turnMult = 10.0;
 uint16_t turnLength;
-bool relayStates[] = {false, false, false, false,
+bool relayStates[] = {true, false, false, false,
                     false, false, false, false};
-bool randomDst = false;
+
+bool randomDst = true;
 
 // debugging
-uint8_t DEBUG = 1;
+uint8_t DEBUG = 0;
 
 // Setup Loop
 
@@ -37,9 +38,9 @@ void setup() {
     pinMode(rgbLedPins[i], OUTPUT);
   }
   // set button pin as input
-  pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(buttonPin, INPUT);
   //set pot pin as input
-  pinMode(potPin, INPUT_PULLUP);
+  pinMode(potPin, INPUT);
   
   if (DEBUG) {
     Serial.begin(57600);
@@ -50,13 +51,28 @@ void loop() {
   // put your main code here, to run repeatedly:
   readSensors();
   switchOutput();
-  if (DEBUG > 1) {delay(DEBUG);};
+  if (DEBUG > 1) {printStats(DEBUG);};
 }
 
+void printStats(uint8_t debug) {
+  delay(debug);
+  Serial.print("Relay States : ");
+  for (int i = 0; i< 8; i++) {
+    Serial.print(relayStates[i]);
+  }
+  Serial.print(" pot : ");
+  Serial.print(potValue);
+  Serial.print(" button state : ");
+  Serial.print(buttonState);
+  Serial.print(" random dst : ");
+  Serial.println(randomDst);
+}
 
 void switchOutput() {
-  if (millis() > lastSwitch + turnLength) {
+   if (millis() > lastSwitch + turnLength) {
+    lastSwitch = millis();
     if (randomDst) {
+      if(DEBUG){Serial.print(" random ");};
       int choosen = random(0, 8);
       for (int i = 0; i < 8; i++) {
         digitalWrite(relayPins[i], LOW);
@@ -66,12 +82,15 @@ void switchOutput() {
       relayStates[choosen] = true;
     }
     else {
+      if(DEBUG){Serial.print(" ordered ");};
       for (int i = 0; i < 8; i++) {
         if (relayStates[i] == true) {
+          if(DEBUG){Serial.print(" entered if ");};
           digitalWrite(relayPins[i], LOW);
           relayStates[i] = false;
           digitalWrite(relayPins[(i + 1) % 7], HIGH);
           relayStates[(i + 1) % 7] = true;
+          break;
         }
       }
     }
@@ -81,7 +100,10 @@ void switchOutput() {
 void readSensors() {
   potValue = analogRead(potPin);
   lastButtonState = buttonState;
-  randomDst = buttonState = digitalRead(buttonPin);
+  buttonState = digitalRead(buttonPin);
+  if(buttonState == lastButtonState) {
+    randomDst = buttonState;
+  }
   turnLength = potValue * turnMult;
   if (lastButtonState == false) {
     if (buttonState == true) {

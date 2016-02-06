@@ -232,19 +232,19 @@
 
 // ------------------------ MODES ----------------------------
 // single player modes
-#define SP_BOTH_CONTROL 0x05 //0x41      // (OR) both players signal gets passed w/o resistance
-#define SP_AGREE 0x09 //0x05             // (AND) both players have to press a button
-#define SP_ALTERNATE 0x11 //0x09         // players take turns
-#define SP_ALTERNATE_RANDOM 0x21 //0x11  // players take turns of random length
-#define SP_DIVERGE 0x41 //0x81           // (XOR) messages only pass if it is not present in both controllers
-#define SP_DIFFER 0x81 //0x21            // (XOR) if both players press a button it does not go through
+#define SP_BOTH_CONTROL 0x05       // (OR) both players signal gets passed w/o resistance
+#define SP_AGREE 0x09              // (AND) both players have to press a button
+#define SP_ALTERNATE 0x11          // players take turns
+#define SP_ALTERNATE_RANDOM 0x21   // players take turns of random length
+#define SP_DIVERGE 0x41            // (XOR) messages only pass if it is not present in both controllers
+#define SP_DIFFER 0x81             // (XOR) if both players press a button it does not go through
 // multiplayer modes
-#define MP_BOTH_CONTROL 0x06 //0x41      // (OR) both players signal gets passed w/o resistance
-#define MP_AGREE 0x0A //0x05             // (AND) both players have to press a button
-#define MP_ALTERNATE 0x12 //0x09         // players take turns
-#define MP_ALTERNATE_RANDOM 0x22 //0x11  // players take turns of random length
-#define MP_DIVERGE 0x42 //0x81           // (XOR) messages only pass if it is not present in both controllers
-#define MP_DIFFER 0x82 //0x21            // (XOR) if both players press a button it does not go through
+#define MP_BOTH_CONTROL 0x06       // (OR) both players signal gets passed w/o resistance
+#define MP_AGREE 0x0A              // (AND) both players have to press a button
+#define MP_ALTERNATE 0x12          // players take turns
+#define MP_ALTERNATE_RANDOM 0x22   // players take turns of random length
+#define MP_DIVERGE 0x42            // (XOR) messages only pass if it is not present in both controllers
+#define MP_DIFFER 0x82             // (XOR) if both players press a button it does not go through
 
 // --------------------- Controlers and Players -------------------
 
@@ -256,13 +256,12 @@
 //                            Globals
 // ================================================================
 // for dev and debug
-uint8_t DEBUG = 2;
+uint8_t DEBUG = 1;
 /*
    0 is no DEBUG
    1 is regular DEBUG - adds print statements
    2 is same as 1 but adds delay to program
 */
-// for determining operating mode
 uint8_t mode = SP_AGREE;
 // dealing with which player is active as well
 // as turn durations and lengths
@@ -351,10 +350,12 @@ void loop() {
     default:
       Serial.print("Error mode not detected : ");
       Serial.println(mode);
-      mode = mode + 1;
+      mode = SP_BOTH_CONTROL;
       
     case MP_AGREE:
-      mode = SP_AGREE;
+      p1OutputState = p2OutputState = playersAgree();
+      writeToChip(p1OutputState, p2OutputState);
+      break;
       
     case SP_AGREE:
       p1OutputState = p2OutputState = playersAgree();
@@ -362,7 +363,9 @@ void loop() {
       break;
 
     case MP_ALTERNATE:
-      mode = SP_ALTERNATE;
+      p1OutputState = p2OutputState = playersAlternate(turnLength);
+      writeToChip(p1OutputState, p2OutputState);
+      break;
     
     case SP_ALTERNATE:
       p1OutputState = p2OutputState = playersAlternate(turnLength);
@@ -370,7 +373,9 @@ void loop() {
       break;
       
     case MP_ALTERNATE_RANDOM:
-      mode = SP_ALTERNATE_RANDOM;
+      p1OutputState = p2OutputState = playersAlternateRandom(turnLength);
+      writeToChip(p1OutputState, p2OutputState);
+      break;
 
     case SP_ALTERNATE_RANDOM:
       p1OutputState = p2OutputState = playersAlternateRandom(turnLength);
@@ -378,7 +383,9 @@ void loop() {
       break;
     
     case MP_DIFFER:
-      mode = SP_DIFFER;
+      p1OutputState = p2OutputState = playersDiffer();
+      writeToChip(p1OutputState, p2OutputState);
+      break;
       
     case SP_DIFFER:
       p1OutputState = p2OutputState = playersDiffer();
@@ -386,7 +393,9 @@ void loop() {
       break;
 
     case MP_BOTH_CONTROL:
-      mode = SP_BOTH_CONTROL;
+      p1OutputState = p2OutputState = bothControl();
+      writeToChip(p1OutputState, p2OutputState);
+      break;
 
     case SP_BOTH_CONTROL:
       p1OutputState = p2OutputState = bothControl();
@@ -394,7 +403,10 @@ void loop() {
       break;
 
     case MP_DIVERGE:
-      mode = SP_DIVERGE;
+      divergeTurnLength = playersDiverge();
+      p1OutputState = p2OutputState = playersAlternate(divergeTurnLength);
+      writeToChip(p1OutputState, p2OutputState);
+      break;
       
     case SP_DIVERGE:
       divergeTurnLength = playersDiverge();
