@@ -268,7 +268,7 @@ uint8_t mode = SP_AGREE;
 uint8_t activePlayer = PLAYER_ONE;
 uint32_t turnStart = 0;
 uint32_t pastPoll = 0;
-uint32_t turnLength = 2000;
+uint32_t turnLength = 4;
 
 uint32_t selectPressTime = 1500;
 uint32_t lastSelectPress = 0;
@@ -281,6 +281,7 @@ uint16_t slowFlash = 400;
 uint32_t divergeTurnLength = 1;
 int8_t divergeDirection;
 uint16_t maxDivergeTurnLength = 5000;
+
 // for helping with mode selections
 uint32_t lastLeftTriggerPress;
 uint32_t lastRightTriggerPress;
@@ -349,7 +350,8 @@ void loop() {
   switch (mode) {
     default:
       Serial.print("Error mode not detected : ");
-      Serial.println(mode);
+      Serial.print(mode);
+      Serial.print(" ");
       mode = SP_BOTH_CONTROL;
       
     case MP_AGREE:
@@ -503,12 +505,10 @@ uint16_t playersAlternateRandom(long mTurnLength) {
   uint16_t output;
   player1State = snes1.buttons();
   player2State = snes2.buttons();
-  if (millis() > turnStart + mTurnLength) {
+  if (millis() > turnStart + ((mTurnLength + (random(-1,1) * mTurnLength * 0.75) * potVal)) {
     activePlayer = (activePlayer + 1) % 2;
     turnStart = millis();
-    dprint("Player");
-    dprintln(activePlayer + 1);
-    turnLength = mTurnLength * random(200) * 0.01 + (mTurnLength * 0.1);
+    )
   }
 
   if (activePlayer == 0) {
@@ -517,7 +517,9 @@ uint16_t playersAlternateRandom(long mTurnLength) {
   else if (activePlayer == 1) {
     output = player2State;
   }
-  dprintState("PLAYERS ALTERNATING RANDOM : ", player1State, player2State);
+  String state = "PLAYERS ALTERNATING RANDOM : P";
+  state = state + activePlayer + " " + "turnLength : " + turnLength + " ";
+  dprintState(state, player1State, player2State);
   return output;
 }
 
@@ -530,13 +532,9 @@ uint16_t playersAlternate(long mTurnLength) {
   uint16_t output;
   player1State = snes1.buttons();
   player2State = snes2.buttons();
-  if (millis() > turnStart + mTurnLength) {
+  if (millis() > turnStart + mTurnLength * potVal) {
     activePlayer = (activePlayer + 1) % 2;
     turnStart = millis();
-    if (DEBUG) {
-      Serial.print("Player : ");
-      Serial.println(activePlayer + 1);
-    }
   }
   if (activePlayer == 0) {
     output = player1State;
@@ -544,7 +542,9 @@ uint16_t playersAlternate(long mTurnLength) {
   else if (activePlayer == 1) {
     output = player2State;
   }
-  dprintState("PLAYERS ALTERNATING :", player1State, player2State);
+  String status_string = "PLAYERS ALTERNATING : P";
+  status_string = status_string + activePlayer + " ";
+  dprintState(status_string, player1State, player2State);
   return output;
 }
 
@@ -553,16 +553,15 @@ uint16_t playersAlternate(long mTurnLength) {
 // ==========================================================================
 
 void mainLoopDebug() {
-  dprintln(" ");
-  dprint(mode);
-  dprint(" : ");
   dprint(" pv : ");
   dprint(potVal);
-  // dprint(" : Rotary State : ");
-  // for (int i = 0; i < 8; i++) {
-  //  dprint((rotaryState << i) & 0x01);
-  // }
-  // dprint(rotaryState);
+  if (DEBUG > 5) {
+    dprint(" : Rotary State : ");
+    for (int i = 0; i < 8; i++) {
+      dprint((rotaryState << i) & 0x01);
+    }
+    dprint(rotaryState);
+  }
   if (potVal < 1000) {
     dprint(" ");
     if (potVal < 100) {
@@ -580,6 +579,7 @@ void mainLoopDebug() {
   printBits(p1OutputState);
   dprint(" : ");
   printBits(p2OutputState);
+  dprintln(" ");
 }
 
 uint16_t readPot() {
@@ -681,7 +681,7 @@ void dprintState(String modeString, uint16_t player1State, uint16_t player2State
     printBits(player1State);
     Serial.print("-");
     printBits(player2State);
-    Serial.print("-");
+    Serial.print(" - ");
   }
 }
 
