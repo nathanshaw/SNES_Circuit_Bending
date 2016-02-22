@@ -238,7 +238,6 @@
 #define SP_ALTERNATE_RANDOM 0x21   // players take turns of random length
 #define SP_DIVERGE 0x41            // (XOR) messages only pass if it is not present in both controllers
 #define SP_ALTERNATE 0x81          // players take turns
-
 #define MP_BOTH_CONTROL 0x06       // (OR) both players signal gets passed w/o resistance
 #define MP_AGREE 0x0A              // (AND) both players have to press a button
 #define MP_DIFFER 0x12             // (XOR) if both players press a button it does not go through
@@ -342,10 +341,8 @@ void setup() {
   STATUS_LEDS = 0x00;
   // let things settle
   delay(10);
-
-    Serial.begin(57600);
-    Serial.println("SERIAL BUS OPENED");
-  
+  Serial.begin(57600);
+  Serial.println("SERIAL BUS OPENED");
 }
 
 void loop() {
