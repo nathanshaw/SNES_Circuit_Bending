@@ -234,17 +234,17 @@
 // single player modes
 #define SP_BOTH_CONTROL 0x05       // (OR) both players signal gets passed w/o resistance
 #define SP_AGREE 0x09              // (AND) both players have to press a button
-#define SP_ALTERNATE 0x11          // players take turns
+#define SP_DIFFER 0x11             // (XOR) if both players press a button it does not go through
 #define SP_ALTERNATE_RANDOM 0x21   // players take turns of random length
 #define SP_DIVERGE 0x41            // (XOR) messages only pass if it is not present in both controllers
-#define SP_DIFFER 0x81             // (XOR) if both players press a button it does not go through
-// multiplayer modes
+#define SP_ALTERNATE 0x81          // players take turns
+
 #define MP_BOTH_CONTROL 0x06       // (OR) both players signal gets passed w/o resistance
 #define MP_AGREE 0x0A              // (AND) both players have to press a button
-#define MP_ALTERNATE 0x12          // players take turns
+#define MP_DIFFER 0x12             // (XOR) if both players press a button it does not go through
 #define MP_ALTERNATE_RANDOM 0x22   // players take turns of random length
 #define MP_DIVERGE 0x42            // (XOR) messages only pass if it is not present in both controllers
-#define MP_DIFFER 0x82             // (XOR) if both players press a button it does not go through
+#define MP_ALTERNATE 0x82          // players take turns
 
 // --------------------- Controlers and Players -------------------
 
@@ -256,22 +256,25 @@
 //                            Globals
 // ================================================================
 // for dev and debug
-uint8_t DEBUG = 1;
+uint8_t DEBUG = 6;
 /*
    0 is no DEBUG
    1 is regular DEBUG - adds print statements
    2 is same as 1 but adds delay to program
 */
-uint8_t mode = SP_AGREE;
+uint8_t mode = MP_BOTH_CONTROL;
 // dealing with which player is active as well
 // as turn durations and lengths
 uint8_t activePlayer = PLAYER_ONE;
 uint32_t turnStart = 0;
 uint32_t pastPoll = 0;
-uint32_t turnLength = 4;
+uint32_t turnLength = 0;
+uint8_t turnLengthScaler = 4; 
 
 uint32_t selectPressTime = 1500;
 uint32_t lastSelectPress = 0;
+
+uint64_t nextRandom = 0;
 
 // for helping with LED flashing
 uint32_t lastFlash = 0;
@@ -340,13 +343,13 @@ void setup() {
   // let things settle
   delay(10);
 
-  if (DEBUG) {
     Serial.begin(57600);
     Serial.println("SERIAL BUS OPENED");
-  }
+  
 }
 
 void loop() {
+  
   switch (mode) {
     default:
       Serial.print("Error mode not detected : ");
@@ -405,12 +408,18 @@ void loop() {
       break;
 
     case MP_DIVERGE:
+      if (DEBUG) {
+        Serial.print("DIVERGE ");
+      }
       divergeTurnLength = playersDiverge();
       p1OutputState = p2OutputState = playersAlternate(divergeTurnLength);
       writeToChip(p1OutputState, p2OutputState);
       break;
       
     case SP_DIVERGE:
+      if (DEBUG) {
+        Serial.print("DIVERGE ");
+      }
       divergeTurnLength = playersDiverge();
       p1OutputState = p2OutputState = playersAlternate(divergeTurnLength);
       writeToChip(p1OutputState, p2OutputState);
@@ -418,12 +427,14 @@ void loop() {
 
   }
   
+  // testter();
   flashLeds();
   mode = readRotary();
+  // hardware pullup reset
   ROTARY_AND_SWITCH = 0xFF;
   p1LastOutputState = p1OutputState;
   p2LastOutputState = p2OutputState;
-  readPot();
+  turnLength = readPot();
   mainLoopDebug();
 }
 
@@ -492,7 +503,7 @@ int playersDiverge() {
   if ( divergeTurnLength > maxDivergeTurnLength || divergeTurnLength < 0) {
     divergeDirection *= -1;
   }
-  divergeTurnLength = divergeTurnLength + divergeDirection;
+  divergeTurnLength = divergeTurnLength + divergeDirection*potVal;
   return divergeTurnLength;
 }
 
@@ -505,25 +516,25 @@ uint16_t playersAlternateRandom(long mTurnLength) {
   uint16_t output;
   player1State = snes1.buttons();
   player2State = snes2.buttons();
-  if (millis() > turnStart + ((mTurnLength + (random(-1,1) * mTurnLength * 0.75) * potVal)) {
+  if (millis() > nextRandom) {
     activePlayer = (activePlayer + 1) % 2;
-    turnStart = millis();
-    )
+    nextRandom =  millis() + (random(1000)*0.0015 * mTurnLength * turnLengthScaler); 
   }
-
   if (activePlayer == 0) {
     output = player1State;
   }
   else if (activePlayer == 1) {
     output = player2State;
   }
-  String state = "PLAYERS ALTERNATING RANDOM : P";
-  state = state + activePlayer + " " + "turnLength : " + turnLength + " ";
-  dprintState(state, player1State, player2State);
+  if (DEBUG) {
+    String state = "PLAYERS ALTERNATING RANDOM : P";
+    state = state + activePlayer + " " + "turnLength : " + turnLength + " ";
+    dprintState(state, player1State, player2State);
+  }
   return output;
 }
 
-uint16_t playersAlternate(long mTurnLength) {
+uint16_t playersAlternate(uint16_t mTurnLength) {
   /*
      This method checks to see who's "turn" it is
      If it is a players turn their controller is read
@@ -542,9 +553,11 @@ uint16_t playersAlternate(long mTurnLength) {
   else if (activePlayer == 1) {
     output = player2State;
   }
-  String status_string = "PLAYERS ALTERNATING : P";
-  status_string = status_string + activePlayer + " ";
-  dprintState(status_string, player1State, player2State);
+  if(DEBUG){
+    String status_string = "PLAYERS ALTERNATING : P";
+    status_string = status_string + activePlayer + " ";
+    dprintState(status_string, player1State, player2State);
+  }
   return output;
 }
 
@@ -726,3 +739,13 @@ void dprintln(int msg) {
     Serial.println(msg);
   }
 }
+
+void testter(){
+  uint16_t on = 0xff;
+  uint16_t off = 0x00;
+  writeToChip(on, on);
+  delay(700);
+  writeToChip(off, off);
+  delay(700);
+}
+

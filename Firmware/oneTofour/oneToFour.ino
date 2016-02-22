@@ -20,9 +20,9 @@
     ===========================================================
 
     -------------------------------------------------
-    PLAYER 1 : INPUT
+    PLAYER 1 : INPUT    (
     -------------------------------------------------
-    GND
+    GND                 
     5v
     DATA          5
     LATCH         3
@@ -239,7 +239,7 @@
 //                            Globals
 // ================================================================
 // for dev and debug
-uint8_t DEBUG = 3;
+uint8_t DEBUG = 0;
 /*
    0 is no DEBUG
    1 is regular DEBUG - adds print statements
@@ -279,14 +279,14 @@ void setup() {
   DDRL = 0xFF;
   DDRK = 0xFF;
   // set LED's port to output
-  DDRF = 0xFF;
+  // DDRF = 0xFF;
   // set controller ports to HIGH (the resting state)
   PLAYER1_BUTTONS1 = 0xFF;
   PLAYER1_BUTTONS2 = 0xFF;
   PLAYER2_BUTTONS1 = 0xFF;
   PLAYER2_BUTTONS2 = 0xFF;
   // set LED's port to LOW
-  STATUS_LEDS = 0x00;
+  // STATUS_LEDS = 0x00;
   // let things settle
   delay(10);
   if (DEBUG) {
@@ -296,16 +296,8 @@ void setup() {
 }
 
 void loop() {
-  p1LastOutputState = p1OutputState;
-  p2LastOutputState = p2OutputState;
   p1OutputState = snes1.buttons();
   p2OutputState = snes2.buttons();
-  if (DEBUG){
-    dprint(" ");
-    printBits(p1OutputState);
-    dprint(" : ");
-    printBits(p2OutputState);
-  }
   writeToChip(p1OutputState, PLAYER_ONE);
   writeToChip(p2OutputState, PLAYER_TWO);
 }

@@ -8,6 +8,8 @@
         4 Digital Outputs
         4 PWM Outputs that pass through a simple highpass filter
         (in the circuit)
+        2 Pots on the left for controlling the "fast" and "slow" speeds
+        2 pots on the right for controlling the amplitude of the fast and slow outputs
 
       Digital Pin 2 will remain ground
       Digital Pin 4 will remain 5v
@@ -28,31 +30,47 @@
         -add option for leds instead of pots
 */
 
+#define INPUT_SCHEMA 0
+#define ARDUINO_INPUTS 0
+
+uint8_t DEBUG = 0;
 // the pins we will be using
 const int pwm_pins[] = {3, 5, 6, 9};
 const int digital_pins[] = {2, 4, 7, 8};
-const int input_pins[] = {A0, A1, A2, A3};
+const int input_pins[] = {A3, A2, A1, A0};
+const int pot_pins[] = {A4, A5, A6, A7};
 const int flipSwitch = 10;
 // past for all groups
-long int digital_past[4];
-long int pwm_past[4];
-long int input_past[4];
-long int flip_past;
+uint64_t digital_past[4];
+uint64_t pwm_past[4];
+uint64_t input_past[4];
+uint64_t pot_past[4] = {100, 200, 300, 400};
+uint64_t flip_past;
 //
-int digital_delay[4];
+int digital_delay_low[4];
+int digital_delay_high[4];
 //
-int input_value[4];
+uint16_t pot_value[4];
+float input_value[4];
+uint16_t pwm_value[4];
+float pwm_scaler[4];
 bool digital_value[4];
 bool flip_value;
+bool pwm_toggle[4];
 //
-int SENSOR_DELAY = 20;
+uint16_t INPUT_DELAY = 20;
+uint16_t POT_DELAY = 20;
 
 // for debugging
-static int PRINT_INTERVAL = 500;
-long int last_print;
+static int PRINT_INTERVAL = 60;
+uint64_t last_print;
+
+// =============================================================================
+// -------------------------------- Setup Loop ---------------------------------
+// =============================================================================
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   for (int i; i < sizeof(pwm_pins) / 2; i++) {
     pinMode(pwm_pins[i], OUTPUT);
   }
@@ -60,7 +78,10 @@ void setup() {
     pinMode(digital_pins[i], OUTPUT);
   }
   for (int i; i < sizeof(input_pins) / 2; i++) {
-    pinMode(input_pins[i], INPUT);
+    pinMode(input_pins[i], INPUT_PULLUP);
+  }
+  for (int i; i < sizeof(pot_pins) / 2; i++) {
+    pinMode(pot_pins[i], INPUT);
   }
   // our digital value is set to the current position of the flip switch
   pinMode(flipSwitch, INPUT);
@@ -77,44 +98,130 @@ void setup() {
   digitalWrite(digital_pins[1], digital_value[1]);
 }
 
+// =============================================================================
+// --------------------------------- Main Loop ---------------------------------
+// =============================================================================
+
 void loop() {
   // read the pots
+  //readSwitch();
+  readPots();
   readInputs();
   updateOutputs();
-  printStats();
+  //printStats();
 }
 
+// =============================================================================
+// --------------------------------- Functions ---------------------------------
+// =============================================================================
+
 void printStats() {
-  if (millis() > PRINT_INTERVAL + last_print) {
-    Serial.println("- - - - - - - - - - - - - - -");
-    Serial.print("Current Digital Values  : ");
-    for (int i; i < sizeof(digital_value) / 2; i++) {
-      Serial.print(digital_value[i]);
-      Serial.print(" ");
+  if (DEBUG) {
+    if (millis() > PRINT_INTERVAL + last_print) {
+      Serial.print("INS: ");
+      for (int i = 0; i < 4; i++) {
+        if (input_value[i] < 100) {
+          Serial.print(" ");
+
+          if (input_value[i] < 10 ) {
+            Serial.print(" ");
+          }
+        }
+        Serial.print(input_value[i]);
+        Serial.print(" ");
+      }
+
+      Serial.print("| ");
+      Serial.print("POTS:");
+      //print pots
+      for (int i = 0; i < 4; i++) {
+        if (pot_value[i] < 1000) {
+          Serial.print(" ");
+          if (pot_value[i] < 100) {
+            Serial.print(" ");
+            if (pot_value[i] < 10) {
+              Serial.print(" ");
+            }
+          }
+        }
+        Serial.print(pot_value[i]);
+        Serial.print(" ");
+      }
+      Serial.print("| ");
+      Serial.print("D-OUTS : ");
+      for (int i = 0; i < 4; i++) {
+        Serial.print(digital_value[i]);
+        Serial.print(" ");
+      }
+      Serial.print("| ");
+      Serial.print("PWM_O:");
+      for (int i = 0; i < 4; i++) {
+        if (pwm_value[i] < 100) {
+          Serial.print(" ");
+          if (pwm_value[i] < 10) {
+            Serial.print(" ");
+          }
+        }
+
+        Serial.print(pwm_value[i]);
+        Serial.print(" ");
+      }
+      Serial.print("| ");
+      Serial.print("SCALERS:");
+      for (int i = 0; i < 4; i++) {
+        Serial.print(digital_delay_high[i]);
+        Serial.print("-");
+        Serial.print(digital_delay_low[i]);
+        Serial.print(" ");
+      }
+      Serial.println();
+      last_print = millis();
     }
-    Serial.println();
-    Serial.print("Current Analoge Values  : ");
-    for (int i; i < sizeof(digital_value) / 2; i++) {
-      Serial.print(digital_value[i]);
-      Serial.print(" ");
-    }
-    Serial.println();
   }
 }
 
 void updateOutputs() {
-  for (int i; i < sizeof(digital_pins) / 2; i++) {
-    if (millis() > digital_past[i] + digital_delay[i] && i > 1) {
-      digital_value[i] != digital_value[i];
-      digitalWrite(digital_pins[i], digital_value[i]);
-      digital_past[i] = millis();
+  for (int i = 2; i < 4; i++) {
+    if (digital_value[i] == false) {
+      if (millis() > digital_past[i] + digital_delay_low[i]) {
+        digital_value[i] = !digital_value[i];
+        digitalWrite(digital_pins[i], digital_value[i]);
+        digital_past[i] = millis();
+      }
+    }
+    else {
+      if (millis() > digital_past[i] + digital_delay_high[i]) {
+        digital_value[i] = !digital_value[i];
+        digitalWrite(digital_pins[i], digital_value[i]);
+        digital_past[i] = millis();
+      }
+    }
+  }
+  for (int i = 0; i < 4; i++) {
+    if (pwm_toggle[i] == true) {
+      if (millis() > pwm_past[i] + digital_delay_low[i]) {
+        static float temp;
+        temp = (pwm_scaler[i] * 125);
+        pwm_value[i] = (byte) temp;
+        analogWrite(pwm_pins[i], pwm_value[i]);
+        pwm_toggle[i] = !pwm_toggle[i];
+        pwm_past[i] = millis();
+      }
+    }
+    else {
+      if (millis() > pwm_past[i] + digital_delay_high[i]) {
+        analogWrite(pwm_pins[i], LOW);
+        pwm_value[i] = 0;
+        pwm_toggle[i] = !pwm_toggle[i];
+        pwm_past[i] = millis();
+      }
     }
   }
 }
 
-void readInputs() {
+void readSwitch() {
   // read the flipSwitch
-  if (millis() > SENSOR_DELAY * 2 + flip_past) {
+  if (millis() > INPUT_DELAY * 2 + flip_past) {
     // if the flip switch has been flipped
     // we reverse the polarity for our first two digital Pins
     if (analogRead(flipSwitch) != flip_value) {
@@ -125,44 +232,55 @@ void readInputs() {
       flip_past = millis();
     }
   }
+}
+
+void readPots() {
+  for (int i = 0; i < 4; i++) {
+    if (millis() > POT_DELAY + pot_past[i]) {
+      pot_value[i] = analogRead(pot_pins[i]);
+      pot_past[i] = millis();
+      switch (i) {
+        case 0:
+          digital_delay_low[0] = pot_value[0] * 2 * input_value[0];
+          digital_delay_low[2] = pot_value[0] * 4 * input_value[2];
+          digital_delay_high[0] = pot_value[0] * 2 * (1 - input_value[0]);
+          digital_delay_high[2] = pot_value[0] * 4 * (1 - input_value[2]);
+          break;
+        case 1:
+          digital_delay_low[1] = pot_value[1] * 3 * input_value[1];
+          digital_delay_low[3] = pot_value[1] * 5 * input_value[3];
+          digital_delay_high[1] = pot_value[1] * 3 * (1 - input_value[i]);
+          digital_delay_high[3] = pot_value[1] * 5 * (1 - input_value[3]);
+          break;
+        case 2:
+          pwm_scaler[0] = pwm_scaler[1] = (float)pot_value[3] * 0.000975;
+          break;
+        case 3:
+          pwm_scaler[2] = pwm_scaler[3] = (float)pot_value[2] * 0.000975;
+          break;
+      }
+    }
+  }
+}
+
+void readInputs() {
   // read the external inputs from the outside
   // these are the pins that are wired to the jacks on the rear of the SNES's
   // these should be wired from A0-A3
-  Serial.print("-----------------------------");
-  for (int i; i < sizeof(input_pins) / 2; i++) {
-    if (millis() > SENSOR_DELAY + input_past[i]) {
-      // store reading into a temp variable
-      int temp = analogRead(input_pins[i]);
-      Serial.print(i);
-      Serial.print(":");
-      Serial.print(input_pins[i]);
-      Serial.print("    ");
-      // if the reading is different than the value we have stored
-      if (temp != input_value[i]) {
-        // update our stored value
-        input_value[i] = temp;
-        // depending on what input we are reading then update accordingly
-        switch (i) {
-
-          case 0: // first input
-            // 1/2 power pwm pin
-            analogWrite(pwm_pins[i], input_value[i] * 0.125);
-            break;
-          case 1: // second input
-            analogWrite(pwm_pins[i], input_value[i] * 0.125 + 125);
-            break;
-          default: // last two inputs
-            analogWrite(pwm_pins[i], input_value[i] * 0.25);
-            // this changes the delay for the slow and fast digital pins
-            // it ranges from 20ms to about two seconds
-            digital_delay[i] = (i * input_value[i] * 0.4) + 20;
-            break;
-        }
-      }
-      input_past[i] = millis();
+  for (int i = 0; i < 4; i++) {
+    // store reading into a temp variable
+    static int input_temp;
+    static float temp_map;
+    input_temp = analogRead(input_pins[i]);
+    temp_map = map(input_temp, 560, 775, 0, 1023);
+    if(i % 2 == 0){
+    input_value[i] = temp_map / 1020;
+    }
+    else{
+      input_value[i] = 1 - (temp_map / 1020);
     }
   }
-  Serial.println(" ");
 }
+
 
 
