@@ -253,10 +253,10 @@ void readPots() {
           digital_delay_high[3] = pot_value[1] * 5 * (1 - input_value[3]);
           break;
         case 2:
-          pwm_scaler[0] = pwm_scaler[1] = (float)pot_value[3] * 0.000975;
+          pwm_scaler[0] = pwm_scaler[1] = (float)pot_value[3] * 0.000775;
           break;
         case 3:
-          pwm_scaler[2] = pwm_scaler[3] = (float)pot_value[2] * 0.000975;
+          pwm_scaler[2] = pwm_scaler[3] = (float)pot_value[2] * 0.000775;
           break;
       }
     }

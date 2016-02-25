@@ -116,24 +116,8 @@
                             Mode Selection
       =======================================================================
 
-      for the first four seconds after the Arduino boots
-      the board will be in a mode select state
+      Mode selection is determined by the position of the rotary switch as well as the position of the toggle switch.            
 
-      In order to select an operating mode both players must press one
-      of the following buttons as the same time
-
-      A             = players agree
-      B             = players alternate
-      Y             = players differ
-      X             = players both play
-      Right Trigger = debug on
-      Left Trigger  = debug off
-      D-Pad UP      = players alternating random
-      D-Pad DOWN    = unmapped
-      D-Pad LEFT    = toggler player // needs testing
-      D-Pad Right   = two controls two // needs testing
-      SELECT        = unmapped
-      START         = Turns DEBUG on
       =======================================================================
                                       LEDS
       =======================================================================
@@ -176,12 +160,15 @@
 
        Add logic for the pot: change turn length, and other things
 */
+
+
 // ================================================================
 //                           Preprocessor
 // ================================================================
 
 #include <SNESpad.h>
 
+  
 // the pins we use for receiving data from the two SNES controllers
 
 // --------------------- Arduino Pins ------------------------
@@ -230,19 +217,19 @@
 // --------------------- MASKS -------------------------------
 
 #define MODE_SELECT_MASK 0x0F03
-#define TRIGGER_MASK 0xC00 //bitmask for both of the triggers
+#define TRIGGER_MASK 0x300 //bitmask for both of the triggers
 
 // ------------------------ MODES ----------------------------
 //-----------  single player --------------------------------
-#define SP_BOTH_CONTROL 0x05       // (OR) both players signal gets passed w/o resistance
+#define SP_BOTH_CONTROL 0x05          // (OR) both players signal gets passed w/o resistance
 #define SP_TEAMWORK 0x09              // (AND) both players have to press a button
-#define SP_AGREE 0x11           // (XOR) if both players press a button it does not go through
-#define SP_ALTERNATE 0x21       // players take turns of random length
-#define SP_ALTERNATE_PRESSES 0x41  // (XOR) messages only pass if it is not present in both controllers
+#define SP_AGREE 0x11                 // (XOR) if both players press a button it does not go through
+#define SP_ALTERNATE 0x21             // players take turns of random length
+#define SP_ALTERNATE_PRESSES 0x41     // (XOR) messages only pass if it is not present in both controllers
 #define SP_TAKE_CONTROL 0x81          // players take turns
 // ------------ Multiplayer ----------------------------------
-#define MP_NORMAL1 0x06            // both controllers are passes as normal
-#define MP_NORMAL2 0x0A            // both controllers are passes as normal
+#define MP_PRESSED_FIRST 0x06            // both controllers are passes as normal
+#define MP_LIMITED_PRESS 0x0A      // both controllers are passes as normal
 #define MP_XOR 0x12                // (XOR) if both players press a button it does not go through
 #define MP_TAKE_CONTROL 0x22       // by pressing both triggers you switch the character you are controllling
 #define MP_ALTERNATE_CONTROL 0x42  // players alternate whom controls both characters
@@ -264,21 +251,14 @@ uint8_t DEBUG = 5;
    2 is same as 1 but adds delay to program
 */
 uint8_t mode = MP_BOTH_CONTROL;
+
 // dealing with which player is active as well
-// as turn durations and lengths
 uint8_t activePlayer = PLAYER_ONE;
-uint32_t turnStart = 0;
-uint32_t pastPoll = 0;
-uint32_t turnLength = 0;
+uint64_t turnStart = 0;
+uint16_t turnLength = 0;
 uint8_t turnLengthScaler = 4;
 
-uint32_t selectPressTime = 1500;
-uint32_t lastSelectPress = 0;
-
-uint64_t nextRandom = 0;
-
 // LED flashing
-uint64_t lastFlash = 0;
 uint64_t lastLedBlink;
 
 // to keep track of last output states
@@ -286,7 +266,7 @@ uint16_t p1LastOutputState = 0x0FFF;
 uint16_t p1OutputState = 0x0000;
 uint16_t p2LastOutputState = 0x0FFF;
 uint16_t p2OutputState = 0x0000;
-uint32_t p1p2OutputState = 0;
+
 // past button states
 uint16_t player1State = 0x0000;
 uint16_t player2State = 0x0000;
@@ -299,10 +279,12 @@ uint16_t lastPotVal;
 uint8_t rotaryState;
 uint8_t lastRotaryState;
 
+// VARIABLES Specific to Certain Modes
+
 // PLAYERS_TAKE_CONTROL play modes
-uint64_t p1LastTrigger;
-uint64_t p2LastTrigger;
-uint16_t triggerDebouce = 1000;
+uint64_t p1LastTrigger = 0;
+uint64_t p2LastTrigger = 0;
+uint16_t triggerDebouce = 5000;
 bool outputsSwitched = false;
 bool lastOutputsSwitched = false;
 uint16_t tc_temp;
@@ -316,6 +298,16 @@ uint16_t p1OutputMask;
 uint16_t p2OutputMask;
 uint16_t p1LastOutputMask;
 uint16_t p2LastOutputMask;
+
+// LIMITED PRESS
+uint16_t p1Presses;
+uint16_t p2Presses;
+uint64_t lastPressCycle;
+bool p1Does;
+bool p2Does;
+
+// XOR
+uint16_t temp_mask;
 
 // create instances of our SNES controller reader objects
 SNESpad snes1 = SNESpad(IN1_LATCH, IN1_CLOCK, IN1_DATA);
@@ -352,7 +344,21 @@ void setup() {
   Serial.println("SERIAL BUS OPENED");
 }
 
+
+// local objects
+//
+#include "object.h"
+_objectName OBJECT;
+
+
+
+
+
 void loop() {
+int foo, bar, blatz;
+
+
+
   mode = readRotary();
   // hardware pullup reset
   ROTARY_AND_SWITCH = 0xFF;
@@ -417,9 +423,9 @@ void loop() {
       else {
         p1OutputState = p2OutputState = p1OutputState | p2OutputState;
       }
-
       lastOutputsSwitched = outputsSwitched;
       writeToChip(p1OutputState, p2OutputState);
+      dprintln(" ");
       break;
 
     case SP_ALTERNATE_PRESSES:
@@ -444,6 +450,7 @@ void loop() {
         p1OutputState = p2OutputState;
       }
       writeToChip(p1OutputState, p2OutputState);
+      dprintln(" ");
       dprint(press_count);
       dprint("/");
       dprint(maxPresses);
@@ -457,7 +464,7 @@ void loop() {
       p2LastOutputState = p2OutputState;
       p1OutputState = snes1.buttons();
       p2OutputState = snes2.buttons();
-      
+
       if (p1OutputState ^ p1LastOutputState != 0 && p1OutputState > p1LastOutputState) {
         p1LastOutputMask = p1OutputMask;
         p1OutputMask = (p1OutputState ^ p1LastOutputState);
@@ -471,7 +478,7 @@ void loop() {
             p1OutputMask = buttonSettle(p1OutputState);
           }
           else {
-            p1OutputMask = buttonSettle(p1LastOutputMask); 
+            p1OutputMask = buttonSettle(p1LastOutputMask);
           }
           p1LastOutputMask = p1OutputMask;
         }
@@ -489,7 +496,7 @@ void loop() {
             p2OutputMask = buttonSettle(p2OutputState);
           }
           else {
-            p2OutputMask = buttonSettle(p2LastOutputMask); 
+            p2OutputMask = buttonSettle(p2LastOutputMask);
           }
           p2LastOutputMask = p2OutputMask;
         }
@@ -499,22 +506,75 @@ void loop() {
       dprintState("SP TEAMWORK :", p1OutputState, p2OutputState);
       break;
 
-    case MP_NORMAL1:
+    case MP_PRESSED_FIRST:
       p1OutputState = snes1.buttons();
       p2OutputState = snes2.buttons();
+
+      if (p1OutputState ^ p1LastOutputState != 0 && p1OutputState > p1LastOutputState) {
+        p1Presses = p1Presses + 1;
+        if (p1Presses > 10) {
+          p1Does = false;
+        }
+        if (millis() > lastPressCycle + (potVal + 1200)) {
+          lastPressCycle = millis();
+          p1Does = true;
+          p1Presses = 0;
+        }
+      }
+
+      if (p2OutputState ^ p2LastOutputState != 0 && p2OutputState > p2LastOutputState) {
+        p2Presses = p2Presses +1;
+        if (p2Presses > 10) {
+          p2Does = false;
+        }
+        if (millis() > lastPressCycle + (potVal  + 1200)) {
+          lastPressCycle = millis();
+          p2Does = true;
+          p2Presses = 0;
+        }
+      }
+      dprint(p1Does);
+      dprint(p2Does);
       writeToChip(p1OutputState, p2OutputState);
-      dprintState("MP NORMAL 2 :", p1OutputState, p2OutputState);
+      dprintln(" ");
+      dprintState("LIMITED PRESS :", p1OutputState, p2OutputState);
       break;
 
-    case MP_NORMAL2:
+    case MP_LIMITED_PRESS:
       p1OutputState = snes1.buttons();
       p2OutputState = snes2.buttons();
+
+      if (p1OutputState ^ p1LastOutputState != 0 && p1OutputState > p1LastOutputState) {
+        p1Presses = p1Presses + 1;
+        if (p1Presses > 10) {
+          p1Does = false;
+        }
+        if (millis() > lastPressCycle + (potVal + 1200)) {
+          lastPressCycle = millis();
+          p1Does = true;
+          p1Presses = 0;
+        }
+      }
+
+      if (p2OutputState ^ p2LastOutputState != 0 && p2OutputState > p2LastOutputState) {
+        p2Presses = p2Presses +1;
+        if (p2Presses > 10) {
+          p2Does = false;
+        }
+        if (millis() > lastPressCycle + (potVal  + 1200)) {
+          lastPressCycle = millis();
+          p2Does = true;
+          p2Presses = 0;
+        }
+      }
+      dprint(p1Does);
+      dprint(p2Does);
       writeToChip(p1OutputState, p2OutputState);
-      dprintState("MP NORMAL 1 :", p1OutputState, p2OutputState);
+      dprintln(" ");
+      dprintState("LIMITED PRESS :", p1OutputState, p2OutputState);
       break;
 
     case MP_XOR:
-      static uint16_t temp_mask;
       p1OutputState = snes1.buttons();
       p2OutputState = snes2.buttons();
       temp_mask = p1OutputState & p2OutputState;
@@ -529,38 +589,50 @@ void loop() {
       p2OutputState = snes2.buttons();
       dprint(outputsSwitched);
       dprintState(" MP TAKE CONTROL : ", p1OutputState, p2OutputState);
-      if ((p1OutputState & TRIGGER_MASK) == TRIGGER_MASK) {
+      if (p1OutputState & TRIGGER_MASK == TRIGGER_MASK) {
+        //Serial.println(" ");
+         dprintln(" ");
         if (millis() > p1LastTrigger + triggerDebouce) {
           p1LastTrigger = millis();
           lastOutputsSwitched = outputsSwitched;
-          outputsSwitched = !outputsSwitched;
+          outputsSwitched = true;
         }
       }
-      else if ((p2OutputState & TRIGGER_MASK) == TRIGGER_MASK) {
+      else if (p2OutputState & TRIGGER_MASK == TRIGGER_MASK) {
+        //Serial.println(" ");
+         dprintln(" ");
         if (millis() > p2LastTrigger + triggerDebouce) {
           p2LastTrigger = millis();
           lastOutputsSwitched = outputsSwitched;
-          outputsSwitched = !outputsSwitched;
+          outputsSwitched = true;
         }
       }
       if (outputsSwitched == true) {
         tc_temp = p1OutputState;
         p1OutputState = p2OutputState;
-        p2OutputState = p1OutputState;
-        if (p1LastTrigger > p2LastTrigger & millis() > p1LastTrigger + (potVal * 2) + 400) {
-          outputsSwitched = false;
-        }
-        else if (millis() > p2LastTrigger + (potVal * 2) + 400) {
-          outputsSwitched = false;
-        }
+        p2OutputState = tc_temp;
+        if (p1LastTrigger > p2LastTrigger)
+
+
+//       outputsSwitched= 
+//         millis() > (p1LastTrigger > p2LastTrigger ? p1LastTrigger : p2LastTrigger) + potVal * 2 + 800;
+
+
+          if (millis() > p1LastTrigger + (potVal * 2) + 800) {
+            outputsSwitched = false;
+          }
+          else {
+            if (millis() > p2LastTrigger + (potVal * 2) + 800) {
+              outputsSwitched = false;
+            }
+          }
       }
-      lastOutputsSwitched = outputsSwitched;
       writeToChip(p1OutputState, p2OutputState);
       break;
 
     case MP_ALTERNATE_CONTROL:
-      static uint16_t alt_mask;
-      alt_mask = playersAlternate(turnLength);
+      uint16_t alt_mask;
+      alt_mask = playersAlternate(turnLength * 2);
       p1OutputState = snes1.buttons() | alt_mask;
       p2OutputState = snes2.buttons() | alt_mask;
       writeToChip(p1OutputState, p2OutputState);
@@ -574,6 +646,7 @@ void loop() {
       p2OutputState = snes2.buttons() | bc_mask;
       writeToChip(p1OutputState, p2OutputState);
       dprint("MP : ");
+      dprintln(" ");
       break;
   }
 
@@ -690,6 +763,13 @@ void mainLoopDebug() {
     printBits((p2OutputState | p1OutputState) & (p1OutputMask | p2OutputMask));
     dprintln(" ");
   }
+  if (mode == MP_LIMITED_PRESS) {
+    dprint(" LP OUTPUTS : ");
+    printBits(p1OutputState * p1Does);
+    dprint(" : ");
+    printBits(p2OutputState * p2Does);
+    dprintln(" ");
+  }
   else {
     dprint(" OUTPUTS : ");
     printBits(p1OutputState);
@@ -748,39 +828,6 @@ void flashLeds() {
   }
 }
 
-int determineOutputController() {
-  /*
-       This method allows a single player to toggle
-       their signal's output between the two output
-       controllers
-
-       this method only responds to the first input controller
-       as it assumes you are playing alone
-  */
-  // check to see if the trigger buttons state has changed
-  if (~PLAYER1_BUTTONS2 & TRIGGER_MASK && p1LastOutputState & TRIGGER_MASK) {
-    // if it is pressed and the last reading it was not pressed
-    // set lastSelectPress to now
-    lastSelectPress = millis();
-  }
-  // if they are off but were just turned on
-  else if (!(~PLAYER1_BUTTONS2 & TRIGGER_MASK) && !(p1LastOutputState & TRIGGER_MASK)) {
-    // do something
-  }
-  // if the trigger buttons are held down for select press time flip the activePlayer
-  else if (~PLAYER1_BUTTONS2 & TRIGGER_MASK &&
-           p1LastOutputState & TRIGGER_MASK &&
-           millis() > lastSelectPress + selectPressTime) {
-    if (activePlayer = PLAYER_ONE) {
-      return PLAYER_TWO;
-    }
-    else {
-      return PLAYER_ONE;
-    }
-  }
-  return activePlayer;
-}
-
 // ==========================================================================
 //                       Communicating with the SNES('s)
 // ==========================================================================
@@ -808,6 +855,10 @@ void writeToChip(uint16_t player1, uint16_t player2) {
       PLAYER1_BUTTONS1 = ~(byte)(player1 & (p1OutputMask | p2OutputMask));
       PLAYER1_BUTTONS2 = ~(((player1 & (p1OutputMask | p2OutputMask)) >> 8) | 0x00);
     }
+    else if (mode == MP_LIMITED_PRESS) {
+      PLAYER1_BUTTONS1 = ~(byte)(player1 * p1Does);
+      PLAYER1_BUTTONS2 = ~(((player1 * p1Does) >> 8) | 0x00);
+    }
     else {
       PLAYER1_BUTTONS1 = ~(byte)player1;
       PLAYER1_BUTTONS2 = ~((player1 >> 8) | 0x00);
@@ -819,104 +870,15 @@ void writeToChip(uint16_t player1, uint16_t player2) {
       PLAYER2_BUTTONS1 = ~(byte)(player2 & (p1OutputMask | p2OutputMask));
       PLAYER2_BUTTONS2 = ~(((player2 & (p1OutputMask | p2OutputMask)) >> 8) | 0x00);
     }
+    else if (mode == MP_LIMITED_PRESS) {
+      PLAYER2_BUTTONS1 = ~(byte)(player2 * p2Does);
+      PLAYER2_BUTTONS2 = ~(((player2 * p2Does) >> 8) | 0x00);
+    }
     else {
       PLAYER2_BUTTONS1 = ~(byte)player2;
       PLAYER2_BUTTONS2 = ~((player2 >> 8) | 0x00);
     }
     p2LastOutputState = player2;
   }
-}
-
-// ============================================================
-// ------------ Printing and DeBugging ----------------
-// ============================================================
-
-void dprintState(String modeString, uint16_t player1State, uint16_t player2State) {
-  if (DEBUG) {
-    Serial.print(modeString);
-    printBits(player1State);
-    Serial.print("-");
-    printBits(player2State);
-    Serial.print(" - ");
-  }
-}
-
-void printBits(uint16_t myByte) {
-  for (uint16_t mask = 0x8000; mask; mask >>= 1) {
-    if (mask & myByte)
-      Serial.print('1');
-    else
-      Serial.print('0');
-  }
-}
-
-void printBits(uint8_t myByte) {
-  for (uint8_t mask = 0x80; mask; mask >>= 1) {
-    if (mask & myByte)
-      Serial.print('1');
-    else
-      Serial.print('0');
-  }
-}
-
-uint16_t buttonSettle(uint16_t myByte) {
-  for (uint16_t mask = 0x8000; mask; mask >>= 1) {
-    if (mask & myByte)
-      return mask;
-  }
-}
-
-uint8_t countBits(uint16_t myByte) {
-  uint8_t bits = 0;
-  for (uint16_t mask = 0x8000; mask; mask >>= 1) {
-    if (mask & myByte) {
-      bits += 1;
-    }
-  }
-  return bits;
-}
-
-void dprint(String msg) {
-  if (DEBUG) {
-    Serial.print(msg);
-  }
-}
-
-void dprint(int msg) {
-  if (DEBUG) {
-    if (msg >= 0) {
-      if (msg < 1000) {
-        Serial.print(" ");
-        if (msg < 100) {
-          Serial.print(" ");
-          if (msg < 10) {
-            Serial.print(" ");
-          }
-        }
-      }
-    }
-    Serial.print(msg);
-  }
-}
-
-void dprintln(String msg) {
-  if (DEBUG) {
-    Serial.println(msg);
-  }
-}
-
-void dprintln(int msg) {
-  if (DEBUG) {
-    Serial.println(msg);
-  }
-}
-
-void testter() {
-  uint16_t on = 0xff;
-  uint16_t off = 0x00;
-  writeToChip(on, on);
-  delay(700);
-  writeToChip(off, off);
-  delay(700);
 }
 
