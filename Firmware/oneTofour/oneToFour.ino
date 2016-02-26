@@ -222,47 +222,21 @@
 #define PLAYER1_BUTTONS2 PORTC
 #define PLAYER2_BUTTONS1 PORTL
 #define PLAYER2_BUTTONS2 PORTK
-#define ROTARY_AND_SWITCH PORTB
-#define STATUS_LEDS PORTF
-
-// --------------------- MASKS -------------------------------
-
-#define MODE_SELECT_MASK 0x0F03
 
 // --------------------- Controlers and Players -------------------
-
-// for chip write modes
-#define PLAYER_ONE 1
-#define PLAYER_TWO 2
-
 // ================================================================
 //                            Globals
 // ================================================================
-// for dev and debug
+
 uint8_t DEBUG = 0;
-/*
-   0 is no DEBUG
-   1 is regular DEBUG - adds print statements
-   2 is same as 1 but adds delay to program
-*/
+
 // dealing with which player is active as well
 // as turn durations and lengths
 
-// for helping with LED flashing
-uint32_t lastFlash = 0;
-uint16_t fastFlash = 100;
-uint16_t slowFlash = 400;
-
 // to keep track of last output sttes
-uint16_t p1LastOutputState = 0x0FFF;
 uint16_t p1OutputState = 0x0000;
-uint16_t p2LastOutputState = 0x0FFF;
 uint16_t p2OutputState = 0x0000;
-uint32_t p1p2OutputState = 0;
 
-// variable to keep track of past button states
-uint16_t player1State = 0x0000;
-uint16_t player2State = 0x0000;
 
 // create instances of our SNES controller reader objects
 SNESpad snes1 = SNESpad(IN1_LATCH, IN1_CLOCK, IN1_DATA);
@@ -298,25 +272,18 @@ void setup() {
 void loop() {
   p1OutputState = snes1.buttons();
   p2OutputState = snes2.buttons();
-  writeToChip(p1OutputState, PLAYER_ONE);
-  writeToChip(p2OutputState, PLAYER_TWO);
+  writeToChip(p1OutputState, p2OutputState);
 }
 
 // ==========================================================================
 //                       Communicating with the SNES('s)
 // ==========================================================================
 
-void writeToChip(uint16_t data, int writtingMode) {
-  if (writtingMode == PLAYER_ONE) {
-    PLAYER1_BUTTONS1 = ~(byte)data;
-    PLAYER1_BUTTONS2 = ~((data >> 8) | 0x00);
-    p1LastOutputState = data;
-  }
-  else if (writtingMode == PLAYER_TWO) {
-    PLAYER2_BUTTONS1 = ~(byte)data;
-    PLAYER2_BUTTONS2 = ~((data >> 8) | 0x00);
-    p2LastOutputState = data;
-  }
+void writeToChip(uint16_t data1, uint16_t data2) {
+    PLAYER1_BUTTONS1 = ~(byte)data1;
+    PLAYER1_BUTTONS2 = ~((data1 >> 8) | 0x00);
+    PLAYER2_BUTTONS1 = ~(byte)data2;
+    PLAYER2_BUTTONS2 = ~((data2 >> 8) | 0x00);
 }
 
 // ============================================================
