@@ -184,9 +184,6 @@
 
 // --------------------- Arduino Pins ------------------------
 
-#define SHIELD_VERSION 2 // 0 is no shield proto, 1 is v1 of shield, 2 is v1.1 of shield
-
-#if SHIELD_VERSION == 2
 #define IN1_LATCH 3
 #define IN1_CLOCK 2
 #define IN1_DATA 5
@@ -194,27 +191,6 @@
 #define IN2_CLOCK 6
 #define IN2_DATA 8
 #define POT_SIG A15
-#endif
-
-#if SHIELD_VERSION == 1
-#define IN1_LATCH 12
-#define IN1_CLOCK 13
-#define IN1_DATA 11
-#define IN2_LATCH 50
-#define IN2_CLOCK 10
-#define IN2_DATA 51
-#define POT_SIG A15
-#endif
-
-#if SHIELD_VERSION == 0
-#define IN1_LATCH 2
-#define IN1_CLOCK 3
-#define IN1_DATA 4
-#define IN2_LATCH 5
-#define IN2_CLOCK 6
-#define IN2_DATA 7
-#define POT_SIG A15
-#endif
 
 // --------------------- PORTS -----------------------------
 
@@ -228,14 +204,10 @@
 //                            Globals
 // ================================================================
 
-uint8_t DEBUG = 0;
+uint8_t DEBUG = 5;
 
-// dealing with which player is active as well
-// as turn durations and lengths
-
-// to keep track of last output sttes
-uint16_t p1OutputState = 0x0000;
-uint16_t p2OutputState = 0x0000;
+uint16_t p1OutputState;
+uint16_t p2OutputState;
 
 
 // create instances of our SNES controller reader objects
@@ -265,7 +237,7 @@ void setup() {
   delay(10);
   if (DEBUG) {
     Serial.begin(57600);
-    dprintln("SERIAL BUS OPENED");
+    Serial.println("SERIAL BUS OPENED");
   }
 }
 
@@ -273,6 +245,14 @@ void loop() {
   p1OutputState = snes1.buttons();
   p2OutputState = snes2.buttons();
   writeToChip(p1OutputState, p2OutputState);
+  if (DEBUG) {
+    delay(DEBUG*10);
+    printBits(p1OutputState);
+    Serial.print("-|-");
+    printBits(p2OutputState);
+    Serial.println(" ");
+    
+  }
 }
 
 // ==========================================================================
@@ -280,6 +260,10 @@ void loop() {
 // ==========================================================================
 
 void writeToChip(uint16_t data1, uint16_t data2) {
+  PLAYER1_BUTTONS1 = 0xFF;
+  PLAYER1_BUTTONS2 = 0xFF;
+  PLAYER2_BUTTONS1 = 0xFF;
+  PLAYER2_BUTTONS2 = 0xFF;
     PLAYER1_BUTTONS1 = ~(byte)data1;
     PLAYER1_BUTTONS2 = ~((data1 >> 8) | 0x00);
     PLAYER2_BUTTONS1 = ~(byte)data2;
@@ -293,32 +277,8 @@ void writeToChip(uint16_t data1, uint16_t data2) {
 void printBits(uint16_t myByte) {
   for (uint16_t mask = 0x8000; mask; mask >>= 1) {
     if (mask & myByte)
-      dprint('1');
+      Serial.print('1');
     else
-      dprint('0');
-  }
-}
-
-void dprint(String msg) {
-  if (DEBUG) {
-    Serial.print(msg);
-  }
-}
-
-void dprint(int msg) {
-  if (DEBUG) {
-    Serial.print(msg);
-  }
-}
-
-void dprintln(String msg) {
-  if (DEBUG) {
-    Serial.println(msg);
-  }
-}
-
-void dprintln(int msg) {
-  if (DEBUG) {
-    Serial.println(msg);
+      Serial.print('0');
   }
 }
