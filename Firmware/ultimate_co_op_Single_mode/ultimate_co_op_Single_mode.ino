@@ -1,3 +1,166 @@
+/*
+    Arduino Firmware for interfacing with the SNES
+
+    Two Input Controllers : Two Output Controllers
+
+    Programmed by Nathan Villicana-Shaw
+    Fall 2015
+
+    This project is a work in progress and builds upon the shoulders
+    of many brilliant programmers, hackers, engineers and artists
+    (links to be added soon)
+
+    This specific version is for use with the Arduino Shield V1.1
+    All the pinouts used in this configuration will be inside the () next to
+    the normal values
+
+
+    ===========================================================
+    ARDUINO : PORTS AND PINS
+    ===========================================================
+
+    -------------------------------------------------
+    PLAYER 1 : INPUT
+    -------------------------------------------------
+    GND
+    5v
+    DATA          5
+    LATCH         3
+    CLOCK         2
+    -------------------------------------------------
+    PLAYER 2 : INPUT
+    -------------------------------------------------
+    GND
+    5v
+    DATA          8
+    LATCH         7
+    CLOCK         6
+    -------------------------------------------------
+    PLAYER 1 : OUTPUT
+    -------------------------------------------------
+    PORTA on the Arduino Mega consists of pins 22-29
+      22 is bit 0, 29 is bit 7
+      we use all the pins  (11111111)
+
+    PORTC on the Arduino MEGA consists of pins 30-37
+    `37 is bit 0, 30 is bit 7
+      we use pins 34-37 (xxxx1111)
+
+    --------------------------------------------------
+    PLAYER 2 : OUTPUT
+    -------------------------------------------------
+    PORTL : on the Arduino Mega consists of pins 42-49
+      49 is bit 0, 42 is bit 7
+      we use all the pins (11111111)
+
+    PORTK : on the Arduino Mega consists of analog pins a8-a15
+      a8 is bit 0, a15 is bit 7
+      we use pins a8-a15 (xxxx1111)
+
+    --------------------------------------------------
+    LEDS :
+    --------------------------------------------------
+    PORTF : on the Arduno Mega port F consists of analog
+      pins 0 - 7, each LED corrisponds with an operation mode
+
+    ================================================================================
+                                  SNES CONTROLLERS
+    ================================================================================
+
+    It is very important to note that the SNES controller reads a button as being pressed
+    upon the grounding of its corrisponding pin -  Thus when a 0 is written to a Pin the
+    button is "pressed" until the pin is raised back to its HIGH
+
+    When hooking up the SNES controllers there are a few things that help the process :
+
+                  SNES Controller Jack Pins
+     ----------------------------- ---------------------
+    |                             |                      \
+    | (1)     (2)     (3)     (4) |   (5)     (6)     (7) |
+    |                             |                      /
+     ----------------------------- ---------------------
+
+    Pin   Description   Wire Color(OEM)  Wire Color(controller extenders)
+    ===   ===========   ==============   ==================
+     1    +5v (power)   White            Blue
+     2    Clock         Yellow           Yellow
+     3    Latch         Orange           Black
+     4    Data          Red              Red
+     5    Nothing       None             None
+     6    Nothing       None             None
+     7    Ground        Brown            Green
+
+     Data Packing Order for the buttons. Note that the first clock cycle
+     is acutually the downwards edge of the LATCH
+
+     Clock Cycle     Button Reported          MEGA PIN Player 1         MEGA PIN Player 2
+     ===========     ===============          =================         =================
+        1               B                           22                          49
+        2               Y                           23                          48
+        3               Select                      24                          47
+        4               Start - down                25                          46
+        5               Up on joypad                26                          45
+        6               Down on joypad              27                          44
+        7               Left on joypad              28                          43
+        8               Right on joypad             29                          42
+        9               A                           37                          A8
+        10              X                           36                          A9
+        11              L                           35                          A10
+        12              R                           34                          A11
+        13              none (always high)         none                        none
+        14              none (always high)         none                        none
+        15              none (always high)         none                        none
+        16              none (always high)         none                        none
+
+      =======================================================================
+                            Mode Selection
+      =======================================================================
+
+      Mode selection is determined by the position of the rotary switch as well as the position of the toggle switch.            
+
+      =======================================================================
+                                      LEDS
+      =======================================================================
+      for expandability and to allow for all the currently available modes of operation
+      different color LEDS will be used to help provide more meaningful user feedback
+      Control for 8LED's total is provided by the shield
+
+        LED Num          LED Color          Meaning
+       (on Board)
+
+          1                 Red             If on it Denotes a VS mode
+          2                 Blue            If on it Denotes a Co-Op Mode
+          3                 Green           xxxxx
+          4                 Green           xxxxx
+          5                 Green           xxxxx
+          6                 Green           xxxxx
+          7                 Green           xxxxx
+          8                 Green           xxxxx
+
+      If you want to play normal without any interfierence from the interface turn the switch off
+
+      All of the LEDS will flash when the game is in the selection mode
+
+      =======================================================================
+                                    General Notes
+      =======================================================================
+
+      For the SNES controllers the buttons resting position is HIGH as 5v when
+      the pad is grounded the button is pressed. This is usally done by bridging
+      pads together using conductive plastic that rests on the bottom of the button
+      you pressed. In this project we solder wires to the sensing pads that we ground
+      using our arduinos digital pins.
+
+      TODO ::
+
+      Flushout the player takeover system
+        - perhaps the buttons become the other players D-pad?
+
+       Have different color LEDS for 'single player' and multiplayer modes
+
+       Add logic for the pot: change turn length, and other things
+*/
+
 // ================================================================
 //                           Preprocessor
 // ================================================================
@@ -86,6 +249,9 @@ uint8_t MODE = SP_AGREE;
 // uint8_t MODE = SP_ALTERNATE;
 // uint8_t MODE = SP_ALTERNATE_PRESSES;
 
+uint16_t potVal = 500;
+bool outputsSwitched;
+
 // for dev and debug
 uint8_t DEBUG = 1;
 /*
@@ -122,6 +288,9 @@ uint16_t maxPresses;
 uint8_t simPress;
 uint16_t p1OutputMask, p2OutputMask;
 uint16_t p1LastOutputMask, p2LastOutputMask;
+uint64_t p1LastTrigger;
+uint64_t p2LastTrigger;
+uint16_t triggerDebouce = 1000;
 
 // LIMITED PRESS
 uint16_t p1Presses, p2Presses;
@@ -210,7 +379,7 @@ void loop() {
       break;
 
     case MP_ALTERNATE_CONTROL:
-      mp_alternate_control();
+      // mpAlternateControl();
       break;
 
     case MP_BOTH_CONTROL:
@@ -340,7 +509,6 @@ void spTakeControl() {
   else {
     p1OutputState = p2OutputState = p1OutputState | p2OutputState;
   }
-  lastOutputsSwitched = outputsSwitched;
   writeToChip(p1OutputState, p2OutputState);
   dprint("OUTPUTS SWITCHED : ");
   dprint(outputsSwitched);
@@ -381,12 +549,12 @@ uint16_t spPlayersAgree() {
      their button states are compared using boolean AND
      and the results of the boolean operation are saved to state
   */
-  uint16_t output;
   player1State = snes1.buttons();
   player2State = snes2.buttons();
-  output = player1State & player2State;
+  p1OutputState = player1State & player2State;
+  p2OutputState = p1OutputState;
   dprintState("PLAYERS AGREE :", player1State, player2State);
-  writeToChip(output, output);
+  writeToChip(p1OutputState, p2OutputState);
 }
 
 uint16_t spPlayersAlternate(uint16_t mTurnLength) {
@@ -422,7 +590,7 @@ uint16_t spPlayersAlternate(uint16_t mTurnLength) {
 
 void mpBothControl() {
   uint16_t alt_mask;
-  alt_mask = playersAlternate(turnLength * 2);
+  alt_mask = spPlayersAlternate(turnLength * 2);
   p1OutputState = snes1.buttons() | alt_mask;
   p2OutputState = snes2.buttons() | alt_mask;
   writeToChip(p1OutputState, p2OutputState);
@@ -483,7 +651,9 @@ void mpXOR() {
 }
 
 void mpTakeControl() {
-  p1OutputState = snes1.buttons();
+      static bool outputsSwitched = false;
+
+      p1OutputState = snes1.buttons();
       p2OutputState = snes2.buttons();
       dprint(outputsSwitched);
       dprintState(" MP TAKE CONTROL : ", p1OutputState, p2OutputState);
@@ -492,7 +662,6 @@ void mpTakeControl() {
         dprintln(" ");
         if (millis() > p1LastTrigger + triggerDebouce) {
           p1LastTrigger = millis();
-          lastOutputsSwitched = outputsSwitched;
           outputsSwitched = true;
         }
       }
@@ -501,12 +670,11 @@ void mpTakeControl() {
         dprintln(" ");
         if (millis() > p2LastTrigger + triggerDebouce) {
           p2LastTrigger = millis();
-          lastOutputsSwitched = outputsSwitched;
           outputsSwitched = true;
         }
       }
       if (outputsSwitched == true) {
-        tc_temp = p1OutputState;
+        uint16_t tc_temp = p1OutputState;
         p1OutputState = p2OutputState;
         p2OutputState = tc_temp;
         if (p1LastTrigger > p2LastTrigger)
@@ -535,3 +703,201 @@ void mpTakeControl() {
 void flashLeds() {
   STATUS_LEDS = p1OutputState;
 }
+
+// ==========================================================================
+//                       Communicating with the SNES('s)
+// ==========================================================================
+
+void writeToChip(uint16_t data, uint8_t writtingMode) {
+  if (writtingMode == PLAYER_ONE) {
+    if (p1LastOutputState != data) {
+      PLAYER1_BUTTONS1 = ~(byte)data;
+      PLAYER1_BUTTONS2 = ~((data >> 8) | 0x00);
+      p1LastOutputState = data;
+    }
+  }
+  else if (writtingMode == PLAYER_TWO) {
+    if (p2LastOutputState != data) {
+      PLAYER2_BUTTONS1 = ~(byte)data;
+      PLAYER2_BUTTONS2 = ~((data >> 8) | 0x00);
+      p2LastOutputState = data;
+    }
+  }
+}
+
+void writeToChip(uint16_t player1, uint16_t player2) {
+  if (p1LastOutputState != player1) {
+    if (MODE == SP_TEAMWORK) {
+      PLAYER1_BUTTONS1 = ~(byte)(player1 & (p1OutputMask | p2OutputMask));
+      PLAYER1_BUTTONS2 = ~(((player1 & (p1OutputMask | p2OutputMask)) >> 8) | 0x00);
+    }
+    else if (MODE == MP_LIMITED_PRESS) {
+      PLAYER1_BUTTONS1 = ~(byte)(player1 * p1Does);
+      PLAYER1_BUTTONS2 = ~(((player1 * p1Does) >> 8) | 0x00);
+    }
+    else {
+      PLAYER1_BUTTONS1 = ~(byte)player1;
+      PLAYER1_BUTTONS2 = ~((player1 >> 8) | 0x00);
+    }
+    p1LastOutputState = player1;
+  }
+  if (p2LastOutputState != player2) {
+    if (MODE == SP_TEAMWORK) {
+      PLAYER2_BUTTONS1 = ~(byte)(player2 & (p1OutputMask | p2OutputMask));
+      PLAYER2_BUTTONS2 = ~(((player2 & (p1OutputMask | p2OutputMask)) >> 8) | 0x00);
+    }
+    else if (MODE == MP_LIMITED_PRESS) {
+      PLAYER2_BUTTONS1 = ~(byte)(player2 * p2Does);
+      PLAYER2_BUTTONS2 = ~(((player2 * p2Does) >> 8) | 0x00);
+    }
+    else {
+      PLAYER2_BUTTONS1 = ~(byte)player2;
+      PLAYER2_BUTTONS2 = ~((player2 >> 8) | 0x00);
+    }
+    p2LastOutputState = player2;
+  }
+}
+
+// ============================================================
+// ------------ Printing and DeBugging ----------------
+// ============================================================
+
+void mainLoopDebug() {
+  // dprint(" pv : ");
+  // dprint(potVal);
+  /*
+  if (DEBUG > 5) {
+    dprint(" : Rotary State : ");
+    for (int i = 0; i < 8; i++) {
+      dprint((rotaryState << i) & 0x01);
+    }
+    dprint(rotaryState);
+    
+  }
+  if (potVal < 1000) {
+    dprint(" ");
+    if (potVal < 100) {
+      dprint(" ");
+      if (potVal < 10) {
+        dprint(" ");
+      }
+    }
+  }
+  */
+  dprint(" : ");
+  if (DEBUG > 1) {
+    delay(10 * DEBUG);
+  };
+  if (MODE == SP_TEAMWORK) {
+    dprint(" TW OUTPUTS : ");
+    printBits((p1OutputState | p2OutputState) & (p1OutputMask | p2OutputMask));
+    dprint(" : ");
+    printBits((p2OutputState | p1OutputState) & (p1OutputMask | p2OutputMask));
+    dprintln(" ");
+  }
+  if (MODE == MP_LIMITED_PRESS) {
+    dprint(" LP OUTPUTS : ");
+    printBits(p1OutputState * p1Does);
+    dprint(" : ");
+    printBits(p2OutputState * p2Does);
+    dprintln(" ");
+  }
+  else {
+    dprint(" OUTPUTS : ");
+    printBits(p1OutputState);
+    dprint(" : ");
+    printBits(p2OutputState);
+    dprintln(" ");
+  }
+}
+
+void dprintState(String modeString, uint16_t player1State, uint16_t player2State) {
+ 
+  if (DEBUG) {
+    Serial.print(modeString);
+    printBits(player1State);
+    Serial.print("-");
+    printBits(player2State);
+    Serial.print(" - ");
+  }
+}
+
+void printBits(uint16_t myByte) {
+  for (uint16_t mask = 0x8000; mask; mask >>= 1) {
+    if (mask & myByte)
+      Serial.print('1');
+    else
+      Serial.print('0');
+  }
+}
+
+void printBits(uint8_t myByte) {
+  for (uint8_t mask = 0x80; mask; mask >>= 1) {
+    if (mask & myByte)
+      Serial.print('1');
+    else
+      Serial.print('0');
+  }
+}
+
+uint16_t buttonSettle(uint16_t myByte) {
+  for (uint16_t mask = 0x8000; mask; mask >>= 1) {
+    if (mask & myByte)
+      return mask;
+  }
+}
+
+uint8_t countBits(uint16_t myByte) {
+  uint8_t bits = 0;
+  for (uint16_t mask = 0x8000; mask; mask >>= 1) {
+    if (mask & myByte) {
+      bits += 1;
+    }
+  }
+  return bits;
+}
+
+void dprint(String msg) {
+  if (DEBUG) {
+    Serial.print(msg);
+  }
+}
+
+void dprint(int msg) {
+  if (DEBUG) {
+    if (msg >= 0) {
+      if (msg < 1000) {
+        Serial.print(" ");
+        if (msg < 100) {
+          Serial.print(" ");
+          if (msg < 10) {
+            Serial.print(" ");
+          }
+        }
+      }
+    }
+    Serial.print(msg);
+  }
+}
+
+void dprintln(String msg) {
+  if (DEBUG) {
+    Serial.println(msg);
+  }
+}
+
+void dprintln(int msg) {
+  if (DEBUG) {
+    Serial.println(msg);
+  }
+}
+
+void testter() {
+  uint16_t on = 0xff;
+  uint16_t off = 0x00;
+  writeToChip(on, on);
+  delay(700);
+  writeToChip(off, off);
+  delay(700);
+}
+
