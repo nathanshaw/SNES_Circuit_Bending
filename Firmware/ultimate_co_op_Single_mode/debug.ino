@@ -1,7 +1,52 @@
-
 // ============================================================
 // ------------ Printing and DeBugging ----------------
 // ============================================================
+
+void mainLoopDebug() {
+  dprint(" pv : ");
+  dprint(potVal);
+  if (DEBUG > 5) {
+    dprint(" : Rotary State : ");
+    for (int i = 0; i < 8; i++) {
+      dprint((rotaryState << i) & 0x01);
+    }
+    dprint(rotaryState);
+  }
+  if (potVal < 1000) {
+    dprint(" ");
+    if (potVal < 100) {
+      dprint(" ");
+      if (potVal < 10) {
+        dprint(" ");
+      }
+    }
+  }
+  dprint(" : ");
+  if (DEBUG > 1) {
+    delay(10 * DEBUG);
+  };
+  if (mode == SP_TEAMWORK) {
+    dprint(" TW OUTPUTS : ");
+    printBits((p1OutputState | p2OutputState) & (p1OutputMask | p2OutputMask));
+    dprint(" : ");
+    printBits((p2OutputState | p1OutputState) & (p1OutputMask | p2OutputMask));
+    dprintln(" ");
+  }
+  if (mode == MP_LIMITED_PRESS) {
+    dprint(" LP OUTPUTS : ");
+    printBits(p1OutputState * p1Does);
+    dprint(" : ");
+    printBits(p2OutputState * p2Does);
+    dprintln(" ");
+  }
+  else {
+    dprint(" OUTPUTS : ");
+    printBits(p1OutputState);
+    dprint(" : ");
+    printBits(p2OutputState);
+    dprintln(" ");
+  }
+}
 
 void dprintState(String modeString, uint16_t player1State, uint16_t player2State) {
  
