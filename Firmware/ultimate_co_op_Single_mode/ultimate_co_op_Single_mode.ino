@@ -116,7 +116,7 @@
                             Mode Selection
       =======================================================================
 
-      Mode selection is determined by the position of the rotary switch as well as the position of the toggle switch.            
+      Mode selection is determined by the position of the rotary switch as well as the position of the toggle switch.
 
       =======================================================================
                                       LEDS
@@ -226,6 +226,7 @@
 #define SP_ALTERNATE 0x22             // players take turns of random length
 #define SP_ALTERNATE_PRESSES 0x42     // (XOR) messages only pass if it is not present in both controllers
 #define SP_TAKE_CONTROL 0x82          // players take turns
+
 // ------------ Multiplayer ----------------------------------
 #define MP_PRESSED_FIRST 0x05      // both controllers are passes as normal
 #define MP_LIMITED_PRESS 0x09      // both controllers are passes as normal
@@ -253,7 +254,9 @@ uint16_t potVal = 500;
 bool outputsSwitched;
 
 // for dev and debug
-uint8_t DEBUG = 1;
+uint8_t DEBUG = 0;
+uint16_t debugLength = 100;
+uint64_t lastDebug = 0;
 /*
    0 is no DEBUG
    1 is regular DEBUG - adds print statements
@@ -599,101 +602,101 @@ void mpBothControl() {
 
 void mpPressedFirst() {
   temp1 = snes1.buttons();
-      temp2 = snes2.buttons();
-      p1OutputState = temp1 ^ temp2;
-      p2OutputState = temp2 ^ temp1;
-      writeToChip(p1OutputState, p2OutputState);
-      dprintState("PRESSED FIRST :", p1OutputState, p2OutputState);
+  temp2 = snes2.buttons();
+  p1OutputState = temp1 ^ temp2;
+  p2OutputState = temp2 ^ temp1;
+  writeToChip(p1OutputState, p2OutputState);
+  dprintState("PRESSED FIRST :", p1OutputState, p2OutputState);
 }
 
 void mpLimitedPress() {
   p1OutputState = snes1.buttons();
-      p2OutputState = snes2.buttons();
+  p2OutputState = snes2.buttons();
 
-      if (p1OutputState ^ p1LastOutputState != 0 && p1OutputState > p1LastOutputState) {
-        p1Presses = p1Presses + 1;
-        if (p1Presses > 15) {
-          p1Does = false;
-        }
-        if (millis() > lastPressCycle + (potVal * 2 + 1200)) {
-          lastPressCycle = millis();
-          p1Does = true;
-          p1Presses = 0;
-        }
-      }
+  if (p1OutputState ^ p1LastOutputState != 0 && p1OutputState > p1LastOutputState) {
+    p1Presses = p1Presses + 1;
+    if (p1Presses > 15) {
+      p1Does = false;
+    }
+    if (millis() > lastPressCycle + (potVal * 2 + 1200)) {
+      lastPressCycle = millis();
+      p1Does = true;
+      p1Presses = 0;
+    }
+  }
 
-      if (p2OutputState ^ p2LastOutputState != 0 && p2OutputState > p2LastOutputState) {
-        p2Presses = p2Presses + 1;
-        if (p2Presses > 15) {
-          p2Does = false;
-        }
-        if (millis() > lastPressCycle + (potVal * 2  + 1200)) {
-          lastPressCycle = millis();
-          p2Does = true;
-          p2Presses = 0;
-        }
-      }
-      dprint(p1Does);
-      dprint(p2Does);
-      writeToChip(p1OutputState, p2OutputState);
-      dprintln(" ");
-      dprintState("LIMITED PRESS :", p1OutputState, p2OutputState);
+  if (p2OutputState ^ p2LastOutputState != 0 && p2OutputState > p2LastOutputState) {
+    p2Presses = p2Presses + 1;
+    if (p2Presses > 15) {
+      p2Does = false;
+    }
+    if (millis() > lastPressCycle + (potVal * 2  + 1200)) {
+      lastPressCycle = millis();
+      p2Does = true;
+      p2Presses = 0;
+    }
+  }
+  dprint(p1Does);
+  dprint(p2Does);
+  writeToChip(p1OutputState, p2OutputState);
+  dprintln(" ");
+  dprintState("LIMITED PRESS :", p1OutputState, p2OutputState);
 }
 
 void mpXOR() {
-      p1OutputState = snes1.buttons();
-      p2OutputState = snes2.buttons();
-      temp_mask = p1OutputState & p2OutputState;
-      p1OutputState = p1OutputState ^ temp_mask;
-      p2OutputState = p2OutputState ^ temp_mask;
-      writeToChip(p1OutputState, p2OutputState);
-      dprintState("MP XOR :", p1OutputState, p2OutputState);
+  p1OutputState = snes1.buttons();
+  p2OutputState = snes2.buttons();
+  temp_mask = p1OutputState & p2OutputState;
+  p1OutputState = p1OutputState ^ temp_mask;
+  p2OutputState = p2OutputState ^ temp_mask;
+  writeToChip(p1OutputState, p2OutputState);
+  dprintState("MP XOR :", p1OutputState, p2OutputState);
 }
 
 void mpTakeControl() {
-      static bool outputsSwitched = false;
+  static bool outputsSwitched = false;
 
-      p1OutputState = snes1.buttons();
-      p2OutputState = snes2.buttons();
-      dprint(outputsSwitched);
-      dprintState(" MP TAKE CONTROL : ", p1OutputState, p2OutputState);
-      if (p1OutputState & TRIGGER_MASK == TRIGGER_MASK) {
-        //Serial.println(" ");
-        dprintln(" ");
-        if (millis() > p1LastTrigger + triggerDebouce) {
-          p1LastTrigger = millis();
-          outputsSwitched = true;
+  p1OutputState = snes1.buttons();
+  p2OutputState = snes2.buttons();
+  dprint(outputsSwitched);
+  dprintState(" MP TAKE CONTROL : ", p1OutputState, p2OutputState);
+  if (p1OutputState & TRIGGER_MASK == TRIGGER_MASK) {
+    //Serial.println(" ");
+    dprintln(" ");
+    if (millis() > p1LastTrigger + triggerDebouce) {
+      p1LastTrigger = millis();
+      outputsSwitched = true;
+    }
+  }
+  else if (p2OutputState & TRIGGER_MASK == TRIGGER_MASK) {
+    //Serial.println(" ");
+    dprintln(" ");
+    if (millis() > p2LastTrigger + triggerDebouce) {
+      p2LastTrigger = millis();
+      outputsSwitched = true;
+    }
+  }
+  if (outputsSwitched == true) {
+    uint16_t tc_temp = p1OutputState;
+    p1OutputState = p2OutputState;
+    p2OutputState = tc_temp;
+    if (p1LastTrigger > p2LastTrigger)
+
+
+      //       outputsSwitched=
+      //         millis() > (p1LastTrigger > p2LastTrigger ? p1LastTrigger : p2LastTrigger) + potVal * 2 + 800;
+
+
+      if (millis() > p1LastTrigger + (potVal * 2) + 800) {
+        outputsSwitched = false;
+      }
+      else {
+        if (millis() > p2LastTrigger + (potVal * 2) + 800) {
+          outputsSwitched = false;
         }
       }
-      else if (p2OutputState & TRIGGER_MASK == TRIGGER_MASK) {
-        //Serial.println(" ");
-        dprintln(" ");
-        if (millis() > p2LastTrigger + triggerDebouce) {
-          p2LastTrigger = millis();
-          outputsSwitched = true;
-        }
-      }
-      if (outputsSwitched == true) {
-        uint16_t tc_temp = p1OutputState;
-        p1OutputState = p2OutputState;
-        p2OutputState = tc_temp;
-        if (p1LastTrigger > p2LastTrigger)
-
-
-          //       outputsSwitched=
-          //         millis() > (p1LastTrigger > p2LastTrigger ? p1LastTrigger : p2LastTrigger) + potVal * 2 + 800;
-
-
-          if (millis() > p1LastTrigger + (potVal * 2) + 800) {
-            outputsSwitched = false;
-          }
-          else {
-            if (millis() > p2LastTrigger + (potVal * 2) + 800) {
-              outputsSwitched = false;
-            }
-          }
-      }
-      writeToChip(p1OutputState, p2OutputState);
+  }
+  writeToChip(p1OutputState, p2OutputState);
 }
 
 // ==========================================================================
@@ -763,80 +766,65 @@ void writeToChip(uint16_t player1, uint16_t player2) {
 // ============================================================
 
 void mainLoopDebug() {
-  // dprint(" pv : ");
-  // dprint(potVal);
-  /*
-  if (DEBUG > 5) {
-    dprint(" : Rotary State : ");
-    for (int i = 0; i < 8; i++) {
-      dprint((rotaryState << i) & 0x01);
-    }
-    dprint(rotaryState);
-    
-  }
-  if (potVal < 1000) {
-    dprint(" ");
-    if (potVal < 100) {
-      dprint(" ");
-      if (potVal < 10) {
-        dprint(" ");
-      }
-    }
-  }
-  */
   dprint(" : ");
-  if (DEBUG > 1) {
-    delay(10 * DEBUG);
-  };
-  if (MODE == SP_TEAMWORK) {
-    dprint(" TW OUTPUTS : ");
-    printBits((p1OutputState | p2OutputState) & (p1OutputMask | p2OutputMask));
-    dprint(" : ");
-    printBits((p2OutputState | p1OutputState) & (p1OutputMask | p2OutputMask));
-    dprintln(" ");
-  }
-  if (MODE == MP_LIMITED_PRESS) {
-    dprint(" LP OUTPUTS : ");
-    printBits(p1OutputState * p1Does);
-    dprint(" : ");
-    printBits(p2OutputState * p2Does);
-    dprintln(" ");
-  }
-  else {
-    dprint(" OUTPUTS : ");
-    printBits(p1OutputState);
-    dprint(" : ");
-    printBits(p2OutputState);
-    dprintln(" ");
+  if (millis() > lastDebug + debugLength) {
+    if (MODE == SP_TEAMWORK) {
+      dprint(" TW OUTPUTS : ");
+      printBits((p1OutputState | p2OutputState) & (p1OutputMask | p2OutputMask));
+      dprint(" : ");
+      printBits((p2OutputState | p1OutputState) & (p1OutputMask | p2OutputMask));
+      dprintln(" ");
+    }
+    if (MODE == MP_LIMITED_PRESS) {
+      dprint(" LP OUTPUTS : ");
+      printBits(p1OutputState * p1Does);
+      dprint(" : ");
+      printBits(p2OutputState * p2Does);
+      dprintln(" ");
+    }
+    else {
+      dprint(" OUTPUTS : ");
+      printBits(p1OutputState);
+      dprint(" : ");
+      printBits(p2OutputState);
+      dprintln(" ");
+    }
+    lastDebug = millis();
   }
 }
 
 void dprintState(String modeString, uint16_t player1State, uint16_t player2State) {
- 
+
   if (DEBUG) {
-    Serial.print(modeString);
-    printBits(player1State);
-    Serial.print("-");
-    printBits(player2State);
-    Serial.print(" - ");
+    if (millis() > lastDebug + debugLength) {
+      Serial.print(modeString);
+      printBits(player1State);
+      Serial.print("-");
+      printBits(player2State);
+      Serial.print(" - ");
+    }
   }
 }
 
 void printBits(uint16_t myByte) {
-  for (uint16_t mask = 0x8000; mask; mask >>= 1) {
-    if (mask & myByte)
-      Serial.print('1');
-    else
-      Serial.print('0');
+  if (millis() > lastDebug + debugLength) {
+    for (uint16_t mask = 0x8000; mask; mask >>= 1) {
+      if (mask & myByte)
+        Serial.print('1');
+      else
+        Serial.print('0');
+    }
   }
 }
 
 void printBits(uint8_t myByte) {
-  for (uint8_t mask = 0x80; mask; mask >>= 1) {
-    if (mask & myByte)
-      Serial.print('1');
-    else
-      Serial.print('0');
+  if (millis() > lastDebug + debugLength) {
+    for (uint8_t mask = 0x80; mask; mask >>= 1) {
+      if (mask & myByte)
+        Serial.print('1');
+      else
+        Serial.print('0');
+    }
   }
 }
 
@@ -858,37 +846,46 @@ uint8_t countBits(uint16_t myByte) {
 }
 
 void dprint(String msg) {
-  if (DEBUG) {
-    Serial.print(msg);
+  if (millis() > lastDebug + debugLength) {
+    if (DEBUG) {
+      Serial.print(msg);
+    }
   }
 }
 
 void dprint(int msg) {
-  if (DEBUG) {
-    if (msg >= 0) {
-      if (msg < 1000) {
-        Serial.print(" ");
-        if (msg < 100) {
+  if (millis() > lastDebug + debugLength) {
+    if (DEBUG) {
+      if (msg >= 0) {
+        if (msg < 1000) {
           Serial.print(" ");
-          if (msg < 10) {
+          if (msg < 100) {
             Serial.print(" ");
+            if (msg < 10) {
+              Serial.print(" ");
+            }
           }
         }
       }
+      Serial.print(msg);
+
     }
-    Serial.print(msg);
   }
 }
 
 void dprintln(String msg) {
-  if (DEBUG) {
-    Serial.println(msg);
+  if (millis() > lastDebug + debugLength) {
+    if (DEBUG) {
+      Serial.println(msg);
+    }
   }
 }
 
 void dprintln(int msg) {
-  if (DEBUG) {
-    Serial.println(msg);
+  if (millis() > lastDebug + debugLength) {
+    if (DEBUG) {
+      Serial.println(msg);
+    }
   }
 }
 
