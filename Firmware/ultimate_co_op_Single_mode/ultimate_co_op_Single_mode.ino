@@ -254,7 +254,7 @@ uint16_t potVal = 500;
 bool outputsSwitched;
 
 // for dev and debug
-uint8_t DEBUG = 0;
+uint8_t DEBUG = 5;
 uint16_t debugLength = 100;
 uint64_t lastDebug = 0;
 /*
